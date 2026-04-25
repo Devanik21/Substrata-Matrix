@@ -1,0 +1,14 @@
+# Core UI and Data Handling
+streamlit
+pandas
+numpy
+scikit-learn
+scipy
+plotly
+matplotlib
+
+# Advanced Clustering and Dimensionality Reduction
+hdbscan
+scikit-learn-extra
+umap-learn
+tensorflow

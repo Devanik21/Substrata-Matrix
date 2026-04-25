@@ -3,7 +3,7 @@ UnSuPERvIsED.py — The World's Most Advanced Unsupervised Learning Intelligence
 ====================================================================================
 A hyper-premium, dark-themed Streamlit application for comprehensive cluster analysis.
 Features 25+ algorithms, AI-powered insights via Gemini, stability analysis,
-consensus clustering, and publication-ready visualizations.
+consensus clustering, and publication-ready visualizations.  
 Author: ClusterX Intelligence Lab
 """
 

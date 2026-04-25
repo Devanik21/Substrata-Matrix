@@ -3,7 +3,7 @@ UnSuPERvIsED.py — The World's Most Advanced Unsupervised Learning Intelligence
 ====================================================================================
 A hyper-premium, dark-themed Streamlit application for comprehensive cluster analysis.
 Features 25+ algorithms, AI-powered insights via Gemini, stability analysis,
-consensus clustering, and publication-ready visualizations.  
+consensus clustering, and publication-ready visualizations.
 Author: ClusterX Intelligence Lab
 """
 
@@ -825,7 +825,8 @@ with tab_algorithms:
                 if info:
                     st.markdown(f"**{info.display_name}**")
                     algo_params = {}
-                    for pname, pspec in info.parameters.items():
+                    for pspec in info.parameters:
+                        pname = pspec.name
                         key = f"param_{algo_name}_{pname}"
                         if pspec.param_type.value == "int":
                             algo_params[pname] = st.number_input(
@@ -842,7 +843,7 @@ with tab_algorithms:
                                 step=0.01, key=key,
                             )
                         elif pspec.param_type.value == "categorical":
-                            opts = pspec.options or [str(pspec.default)]
+                            opts = pspec.choices or [str(pspec.default)]
                             algo_params[pname] = st.selectbox(
                                 pspec.display_name, opts,
                                 index=opts.index(str(pspec.default)) if str(pspec.default) in opts else 0,

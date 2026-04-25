@@ -8,7 +8,7 @@ plotly
 matplotlib
 
 # Advanced Clustering and Dimensionality Reduction
-hdbscan
 scikit-learn-extra
 umap-learn
 tensorflow
+google-generativeai

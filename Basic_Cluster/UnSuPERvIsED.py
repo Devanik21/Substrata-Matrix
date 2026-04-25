@@ -60,6 +60,7 @@ from visualization import (
     DimReducer, ScatterPlotter, SilhouettePlotter, ElbowPlotter,
     RadarPlotter, HeatmapPlotter, DendrogramPlotter, DistributionPlotter,
     StabilityPlotter, GaugePlotter, PCAPlotter, ViolinPlotter,
+    GeneralBarPlotter,
     PairPlotter, SunburstPlotter, ConvergencePlotter, MetricsTablePlotter,
     NNDistancePlotter, HopkinsPlotter, OverlapHeatmapPlotter,
     DARK_BG, CARD_BG, GRID_COLOR, TEXT_COLOR,
@@ -962,7 +963,7 @@ with tab_run:
 
     with gap_col:
         if st.button("📊 Run Gap Statistic", use_container_width=True):
-            gap_calc = GapStatistic(n_refs=10, random_state=random_seed)
+            gap_calc = GapStatistic(n_references=10, random_state=random_seed)
             try:
                 with st.spinner("Computing gap statistic..."):
                     gap_data = gap_calc.compute(X_data, k_range=(int(k_range_min), int(k_range_max)))
@@ -1082,8 +1083,8 @@ with tab_run:
                         radar_data[r.algorithm_name] = normed
                 if radar_data:
                     first_key = list(radar_data.values())[0].keys()
-                    fig_radar = RadarPlotter.multi_algorithm(
-                        radar_data, list(first_key)
+                    fig_radar = RadarPlotter.plot_comparison(
+                        list(radar_data.keys()), radar_data
                     )
                     st.plotly_chart(fig_radar, use_container_width=True)
 
@@ -1739,9 +1740,10 @@ with tab_viz:
                 if comparison_metric in metric_values_cmp:
                     vals = metric_values_cmp[comparison_metric]
                     try:
-                        fig_cmp = RadarPlotter.plot_comparison(
+                        fig_cmp = GeneralBarPlotter.plot(
                             list(vals.keys()), list(vals.values()),
-                            comparison_metric,
+                            title=f"Comparison: {comparison_metric}",
+                            ylabel=comparison_metric,
                         )
                         st.plotly_chart(fig_cmp, use_container_width=True)
                     except Exception as e:

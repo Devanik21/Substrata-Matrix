@@ -830,23 +830,29 @@ with tab_algorithms:
                         key = f"param_{algo_name}_{pname}"
                         if pspec.param_type.value == "int":
                             algo_params[pname] = st.number_input(
-                                pspec.display_name, value=int(pspec.default),
+                                pspec.name.replace("_", " ").title(), 
+                                value=int(pspec.default),
                                 min_value=int(pspec.min_val) if pspec.min_val else 1,
                                 max_value=int(pspec.max_val) if pspec.max_val else 100,
+                                help=pspec.description,
                                 key=key,
                             )
                         elif pspec.param_type.value == "float":
                             algo_params[pname] = st.number_input(
-                                pspec.display_name, value=float(pspec.default),
+                                pspec.name.replace("_", " ").title(),
+                                value=float(pspec.default),
                                 min_value=float(pspec.min_val) if pspec.min_val else 0.0,
                                 max_value=float(pspec.max_val) if pspec.max_val else 100.0,
+                                help=pspec.description,
                                 step=0.01, key=key,
                             )
                         elif pspec.param_type.value == "categorical":
                             opts = pspec.choices or [str(pspec.default)]
                             algo_params[pname] = st.selectbox(
-                                pspec.display_name, opts,
+                                pspec.name.replace("_", " ").title(), 
+                                opts,
                                 index=opts.index(str(pspec.default)) if str(pspec.default) in opts else 0,
+                                help=pspec.description,
                                 key=key,
                             )
                     if algo_params:

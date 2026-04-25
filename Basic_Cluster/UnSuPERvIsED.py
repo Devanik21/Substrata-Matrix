@@ -1699,7 +1699,7 @@ with tab_viz:
     with st.expander("📊 Feature Histograms by Cluster"):
         fnames = st.session_state.feature_names
         if fnames:
-            hist_feat = st.selectbox("Feature", fnames, index=0, key="hist_feat")
+            hist_feat = st.selectbox("Feature", fnames, index=0, key="hist_feat_9w0m4e")
             hist_idx = fnames.index(hist_feat)
             try:
                 fig_hist = DistributionPlotter.feature_histogram(

@@ -506,6 +506,28 @@ class DistributionPlotter:
         fig.update_layout(title=title)
         return _apply_dark(fig)
 
+    @staticmethod
+    def feature_histogram(X: np.ndarray, labels: np.ndarray,
+                         feature_idx: int, feature_name: str,
+                         title: str = "Feature Distribution by Cluster") -> go.Figure:
+        fig = go.Figure()
+        unique = sorted([l for l in np.unique(labels) if l >= 0])
+        for c in unique:
+            vals = X[labels == c, feature_idx]
+            fig.add_trace(go.Histogram(
+                x=vals, name=f"Cluster {c}",
+                marker_color=_get_color(c),
+                opacity=0.6,
+                nbinsx=30,
+            ))
+        fig.update_layout(
+            title=f"{title}: {feature_name}",
+            xaxis_title=feature_name,
+            yaxis_title="Count",
+            barmode="overlay",
+        )
+        return _apply_dark(fig)
+
 
 # ──────────────────────────────────────────────────────────────────
 # STABILITY VISUALIZATIONS

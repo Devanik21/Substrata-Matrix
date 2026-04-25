@@ -1529,13 +1529,16 @@ with tab_ai:
 
     # AI prompt
     st.markdown("##### 💬 Ask the AI about your clustering results")
-    default_prompt = (
+    default_text = (
         "Analyze these clustering results. Which algorithm performed best and why? "
         "Are the clusters well-separated? What insights can you draw about the data structure? "
         "Provide actionable recommendations for improving the clustering."
     )
+    # Check if a template was pushed
+    initial_value = st.session_state.get("ai_prompt_pushed", default_text)
+    
     user_prompt = st.text_area(
-        "Your question:", value=default_prompt, height=100, key="ai_prompt",
+        "Your question:", value=initial_value, height=100, key="ai_prompt_widget",
     )
 
     ai_left, ai_right = st.columns([1, 1])
@@ -2111,7 +2114,7 @@ with tab_ai:
     for i, (label, prompt) in enumerate(templates):
         with template_cols[i]:
             if st.button(label, use_container_width=True, key=f"tmpl_{i}"):
-                st.session_state["ai_prompt"] = prompt
+                st.session_state["ai_prompt_pushed"] = prompt
                 st.rerun()
 
     # Session info

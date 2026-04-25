@@ -465,7 +465,7 @@ with st.sidebar:
                     st.error(f"Load failed: {e}")
     else:
         dataset_choice = st.selectbox("Choose Dataset", SYNTHETIC_DATASETS)
-        if st.button("🔄 Generate", use_container_width=True):
+        if st.button("🔄 Generate", width='stretch'):
             df = _generate_synthetic(dataset_choice)
             st.session_state.df_raw = df
             st.session_state.dataset_name = dataset_choice
@@ -559,13 +559,13 @@ with tab_profile:
                 "Skew": round(cp.skewness, 3) if cp.skewness is not None else "—",
                 "Outliers %": cp.outlier_pct,
             })
-        st.dataframe(pd.DataFrame(profile_rows), use_container_width=True, height=350)
+        st.dataframe(pd.DataFrame(profile_rows), width='stretch', height=350)
 
     with col_right:
         st.markdown("##### Correlation Matrix")
         if profile.correlation_matrix is not None:
             fig_corr = HeatmapPlotter.correlation_heatmap(profile.correlation_matrix)
-            st.plotly_chart(fig_corr, use_container_width=True)
+            st.plotly_chart(fig_corr, width='stretch')
         else:
             st.info("Need ≥2 numeric columns for correlation matrix")
 
@@ -577,12 +577,12 @@ with tab_profile:
     with st.expander("🔍 Missing Value Heatmap", expanded=False):
         if profile.total_missing > 0:
             fig_miss = HeatmapPlotter.missing_value_heatmap(df_raw)
-            st.plotly_chart(fig_miss, use_container_width=True)
+            st.plotly_chart(fig_miss, width='stretch')
         else:
             st.success("No missing values detected!")
 
     with st.expander("📋 Data Preview", expanded=False):
-        st.dataframe(df_raw.head(100), use_container_width=True, height=300)
+        st.dataframe(df_raw.head(100), width='stretch', height=300)
 
     if profile.warnings:
         with st.expander("⚠️ Profiling Warnings"):
@@ -661,7 +661,7 @@ with tab_preprocess:
 
     st.markdown("---")
 
-    if st.button("🚀 Run Preprocessing Pipeline", use_container_width=True, type="primary"):
+    if st.button("🚀 Run Preprocessing Pipeline", width='stretch', type="primary"):
         pp_config = PreprocessingConfig(
             impute_strategy=ImputeStrategy(imp_strategy),
             scaler_type=ScalerType(scaler_choice),
@@ -716,7 +716,7 @@ with tab_preprocess:
                 hc1, hc2 = st.columns([1, 2])
                 with hc1:
                     fig_hop = HopkinsPlotter.plot(hopkins_res["hopkins"])
-                    st.plotly_chart(fig_hop, use_container_width=True)
+                    st.plotly_chart(fig_hop, width='stretch')
                 with hc2:
                     st.markdown(f"**Hopkins Score:** `{hopkins_res['hopkins']}`")
                     st.markdown(f"**Interpretation:** {hopkins_res['interpretation']}")
@@ -731,7 +731,7 @@ with tab_preprocess:
 
             with st.expander("📊 Processed Data Preview"):
                 st.dataframe(result.X_processed.head(100),
-                             use_container_width=True, height=300)
+                             width='stretch', height=300)
 
             # NN Distance Profile
             with st.expander("📐 k-NN Distance Profile (DBSCAN ε estimation)"):
@@ -741,7 +741,7 @@ with tab_preprocess:
                 fig_nn = NNDistancePlotter.plot(
                     nn_res["kth_distances"], nn_res["suggested_eps"], k=nn_k,
                 )
-                st.plotly_chart(fig_nn, use_container_width=True)
+                st.plotly_chart(fig_nn, width='stretch')
                 st.info(f"📍 Suggested ε = **{nn_res['suggested_eps']}** "
                         f"(knee at index {nn_res['knee_index']})")
 
@@ -785,7 +785,7 @@ with tab_algorithms:
             df_algos = pd.DataFrame(algo_table)
             if selected_family != "All":
                 df_algos = df_algos[df_algos.get("family", "") == selected_family]
-            st.dataframe(df_algos, use_container_width=True, height=300)
+            st.dataframe(df_algos, width='stretch', height=300)
 
         # Selection
         st.markdown("##### Select Algorithms to Run")
@@ -942,7 +942,7 @@ with tab_run:
     elbow_col, gap_col = st.columns(2)
 
     with elbow_col:
-        if st.button("📐 Run Elbow Analysis", use_container_width=True):
+        if st.button("📐 Run Elbow Analysis", width='stretch'):
             orch = ClusteringOrchestrator(RunConfig(random_state=random_seed))
             progress_bar = st.progress(0, text="Computing elbow...")
             def _elbow_cb(msg, pct):
@@ -962,7 +962,7 @@ with tab_run:
                 st.error(f"Elbow analysis failed: {e}")
 
     with gap_col:
-        if st.button("📊 Run Gap Statistic", use_container_width=True):
+        if st.button("📊 Run Gap Statistic", width='stretch'):
             gap_calc = GapStatistic(n_references=10, random_state=random_seed)
             try:
                 with st.spinner("Computing gap statistic..."):
@@ -980,18 +980,18 @@ with tab_run:
             fig_elbow = ElbowPlotter.plot_elbow(
                 ed["k_values"], ed["inertias"], ed.get("optimal_k_inertia")
             )
-            st.plotly_chart(fig_elbow, use_container_width=True)
+            st.plotly_chart(fig_elbow, width='stretch')
         with ec2:
             fig_sil_curve = ElbowPlotter.plot_silhouette_curve(
                 ed["k_values"], ed["silhouette_scores"],
                 ed.get("optimal_k_silhouette")
             )
-            st.plotly_chart(fig_sil_curve, use_container_width=True)
+            st.plotly_chart(fig_sil_curve, width='stretch')
 
     st.markdown("---")
 
     # ── Main Clustering Run ──
-    if st.button("⚡ Execute Batch Clustering", use_container_width=True, type="primary"):
+    if st.button("⚡ Execute Batch Clustering", width='stretch', type="primary"):
         params_ovr = st.session_state.get("params_override", {})
         config = RunConfig(
             algorithms=algos_to_run,
@@ -1058,7 +1058,7 @@ with tab_run:
             }
             for r in reports
         ])
-        st.dataframe(res_df, use_container_width=True)
+        st.dataframe(res_df, width='stretch')
 
         # Comparison matrix
         if len(reports) > 1:
@@ -1066,11 +1066,11 @@ with tab_run:
                 builder = ComparisonMatrixBuilder()
                 comp_df = builder.build(reports)
                 fig_comp = MetricsTablePlotter.plot(comp_df, "Normalized Comparison")
-                st.plotly_chart(fig_comp, use_container_width=True)
+                st.plotly_chart(fig_comp, width='stretch')
 
                 win_df = builder.pairwise_win_matrix(reports)
                 st.markdown("**Pairwise Win Count:**")
-                st.dataframe(win_df, use_container_width=True)
+                st.dataframe(win_df, width='stretch')
 
         # Radar chart
         if reports:
@@ -1086,7 +1086,7 @@ with tab_run:
                     fig_radar = RadarPlotter.plot_comparison(
                         list(radar_data.keys()), radar_data
                     )
-                    st.plotly_chart(fig_radar, use_container_width=True)
+                    st.plotly_chart(fig_radar, width='stretch')
 
         # Cluster statistics for best result
         if reports:
@@ -1094,7 +1094,7 @@ with tab_run:
             with st.expander(f"📋 Cluster Stats — {best_report.algorithm_name}"):
                 engine_display = EvaluationEngine()
                 stats_df = engine_display.get_cluster_stats_dataframe(best_report)
-                st.dataframe(stats_df, use_container_width=True)
+                st.dataframe(stats_df, width='stretch')
 
                 # Feature importance
                 fi_analyzer = FeatureImportanceAnalyzer()
@@ -1110,7 +1110,7 @@ with tab_run:
                     )
                     if not fi_df.empty:
                         st.markdown("**Feature Importance (ANOVA F-test):**")
-                        st.dataframe(fi_df, use_container_width=True)
+                        st.dataframe(fi_df, width='stretch')
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -1160,7 +1160,7 @@ with tab_viz:
 
         show_3d = st.checkbox("Show 3D", value=False, key="show_3d_check")
 
-        if st.button("🔄 Compute Projection", use_container_width=True):
+        if st.button("🔄 Compute Projection", width='stretch'):
             with st.spinner(f"Computing {dim_method.upper()} projection..."):
                 reducer = DimReducer()
                 try:
@@ -1186,7 +1186,7 @@ with tab_viz:
                 st.session_state.X_2d, active_labels,
                 title=f"{dim_method.upper()} — {active_result.display_name}",
             )
-            st.plotly_chart(fig_2d, use_container_width=True)
+            st.plotly_chart(fig_2d, width='stretch')
 
         if show_3d and st.session_state.X_3d is not None:
             if st.session_state.X_3d.shape[1] >= 3:
@@ -1194,7 +1194,7 @@ with tab_viz:
                     st.session_state.X_3d, active_labels,
                     title=f"{dim_method.upper()} 3D — {active_result.display_name}",
                 )
-                st.plotly_chart(fig_3d, use_container_width=True)
+                st.plotly_chart(fig_3d, width='stretch')
             else:
                 st.warning("⚠️ Cannot render 3D plot: Data has fewer than 3 components.")
 
@@ -1205,7 +1205,7 @@ with tab_viz:
             clean_mask = active_labels >= 0
             if clean_mask.sum() > 10 and len(set(active_labels[clean_mask])) >= 2:
                 fig_sil = SilhouettePlotter.plot(X_data[clean_mask], active_labels[clean_mask])
-                st.plotly_chart(fig_sil, use_container_width=True)
+                st.plotly_chart(fig_sil, width='stretch')
             else:
                 st.info("Silhouette requires ≥2 clusters with ≥10 points.")
         except Exception as e:
@@ -1216,13 +1216,13 @@ with tab_viz:
         pca_c1, pca_c2 = st.columns(2)
         with pca_c1:
             fig_pca_var = PCAPlotter.variance_explained(X_data)
-            st.plotly_chart(fig_pca_var, use_container_width=True)
+            st.plotly_chart(fig_pca_var, width='stretch')
         with pca_c2:
             fig_biplot = PCAPlotter.biplot(
                 X_data, active_labels,
                 feature_names=st.session_state.feature_names,
             )
-            st.plotly_chart(fig_biplot, use_container_width=True)
+            st.plotly_chart(fig_biplot, width='stretch')
 
     # ── Violin Plots ──
     with st.expander("🎻 Feature Distribution Violins"):
@@ -1235,7 +1235,7 @@ with tab_viz:
             fig_violin = ViolinPlotter.plot(
                 X_data, active_labels, fnames, feature_idx=feat_idx,
             )
-            st.plotly_chart(fig_violin, use_container_width=True)
+            st.plotly_chart(fig_violin, width='stretch')
 
     # ── Pair Plot ──
     with st.expander("🔗 Pair Plot (Scatter Matrix)"):
@@ -1245,12 +1245,12 @@ with tab_viz:
             feature_names=st.session_state.feature_names,
             max_features=max_pair_feat,
         )
-        st.plotly_chart(fig_pair, use_container_width=True)
+        st.plotly_chart(fig_pair, width='stretch')
 
     # ── Sunburst ──
     with st.expander("🌞 Cluster Sunburst Chart"):
         fig_sun = SunburstPlotter.plot(active_labels)
-        st.plotly_chart(fig_sun, use_container_width=True)
+        st.plotly_chart(fig_sun, width='stretch')
 
     # ── Cluster Overlap ──
     with st.expander("🔥 Cluster Overlap Analysis"):
@@ -1260,7 +1260,7 @@ with tab_viz:
             ov1, ov2 = st.columns([1, 1])
             with ov1:
                 fig_overlap = OverlapHeatmapPlotter.plot(overlap_res["overlap_matrix"])
-                st.plotly_chart(fig_overlap, use_container_width=True)
+                st.plotly_chart(fig_overlap, width='stretch')
             with ov2:
                 st.markdown(f"**Total Overlap:** `{overlap_res['total_overlap']}`")
                 st.markdown(f"**Max Overlap:** `{overlap_res['max_overlap']}`")
@@ -1282,7 +1282,7 @@ with tab_viz:
             fig_dist = DistributionPlotter.feature_histogram(
                 X_data, active_labels, dist_idx, dist_feat,
             )
-            st.plotly_chart(fig_dist, use_container_width=True, key="fig_dist_hist_tab5")
+            st.plotly_chart(fig_dist, width='stretch', key="fig_dist_hist_tab5")
 
     # ── Cluster Profiler ──
     with st.expander("🧾 Cluster Feature Profiles"):
@@ -1292,7 +1292,7 @@ with tab_viz:
             feature_names=st.session_state.feature_names,
         )
         if not prof_df.empty:
-            st.dataframe(prof_df, use_container_width=True, height=400)
+            st.dataframe(prof_df, width='stretch', height=400)
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -1354,7 +1354,7 @@ with tab_stability:
 
     st.markdown("---")
 
-    if st.button("🔬 Run Stability Analysis", use_container_width=True, type="primary"):
+    if st.button("🔬 Run Stability Analysis", width='stretch', type="primary"):
         pipeline = StabilityPipeline(
             n_bootstrap=preset_config["n_bootstrap"],
             n_consensus=preset_config["n_consensus"],
@@ -1393,14 +1393,14 @@ with tab_stability:
         # Leaderboard
         st.markdown("### 🏆 Stability Leaderboard")
         leaderboard = StabilityPipeline.get_stability_leaderboard(stab_reports)
-        st.dataframe(leaderboard, use_container_width=True)
+        st.dataframe(leaderboard, width='stretch')
 
         # Stability bar chart
         viz_data = StabilityVisualDataBuilder.build_leaderboard_data(stab_reports)
         fig_stab_bar = StabilityPlotter.stability_bars(
             viz_data["algo_names"], viz_data["mean_aris"], viz_data["grades"]
         )
-        st.plotly_chart(fig_stab_bar, use_container_width=True)
+        st.plotly_chart(fig_stab_bar, width='stretch')
 
         # Per-algorithm details
         for report in stab_reports:
@@ -1425,7 +1425,7 @@ with tab_stability:
                     min_val=0, max_val=1,
                     thresholds=[0.4, 0.65, 0.85],
                 )
-                st.plotly_chart(fig_gauge, use_container_width=True)
+                st.plotly_chart(fig_gauge, width='stretch')
 
                 # Consensus heatmap
                 if report.consensus_result is not None:
@@ -1438,13 +1438,13 @@ with tab_stability:
                     con_c1, con_c2 = st.columns(2)
                     with con_c1:
                         fig_hm = HeatmapPlotter.consensus_heatmap(cr.consensus_matrix)
-                        st.plotly_chart(fig_hm, use_container_width=True)
+                        st.plotly_chart(fig_hm, width='stretch')
                     with con_c2:
                         if cr.cdf_x is not None and cr.cdf_values is not None:
                             fig_cdf = StabilityPlotter.consensus_cdf(
                                 cr.cdf_x, cr.cdf_values, cr.pac_score,
                             )
-                            st.plotly_chart(fig_cdf, use_container_width=True)
+                            st.plotly_chart(fig_cdf, width='stretch')
 
                 # Perturbation curves
                 if report.perturbation_result is not None:
@@ -1454,7 +1454,7 @@ with tab_stability:
                         pr.noise_levels, pr.mean_ari_per_level,
                         pr.std_ari_per_level,
                     )
-                    st.plotly_chart(fig_perturb, use_container_width=True)
+                    st.plotly_chart(fig_perturb, width='stretch')
 
                     # Feature dropout
                     if pr.feature_dropout_scores:
@@ -1463,7 +1463,7 @@ with tab_stability:
                             "Feature Index": list(pr.feature_dropout_scores.keys()),
                             "ARI After Drop": list(pr.feature_dropout_scores.values()),
                         })
-                        st.dataframe(fd_df, use_container_width=True)
+                        st.dataframe(fd_df, width='stretch')
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -1544,7 +1544,7 @@ with tab_ai:
     ai_left, ai_right = st.columns([1, 1])
 
     with ai_left:
-        if st.button("🧠 Generate Insights", use_container_width=True, type="primary"):
+        if st.button("🧠 Generate Insights", width='stretch', type="primary"):
             context = _build_ai_context()
             full_prompt = (
                 f"You are an expert data scientist specializing in unsupervised learning "
@@ -1573,7 +1573,7 @@ with tab_ai:
                 st.code(traceback.format_exc(), language="text")
 
     with ai_right:
-        if st.button("📊 Auto-Summarize Results", use_container_width=True):
+        if st.button("📊 Auto-Summarize Results", width='stretch'):
             context = _build_ai_context()
             summary_prompt = (
                 f"You are an expert data scientist. Summarize these clustering results "
@@ -1613,7 +1613,7 @@ with tab_ai:
     export_cols = st.columns(3)
 
     with export_cols[0]:
-        if st.button("💾 Export Labels (CSV)", use_container_width=True):
+        if st.button("💾 Export Labels (CSV)", width='stretch'):
             batch = st.session_state.batch_result
             best = next(
                 (r for r in batch.results
@@ -1632,7 +1632,7 @@ with tab_ai:
 
     with export_cols[1]:
         if st.session_state.eval_reports:
-            if st.button("📊 Export Metrics (CSV)", use_container_width=True):
+            if st.button("📊 Export Metrics (CSV)", width='stretch'):
                 rows = []
                 for r in st.session_state.eval_reports:
                     row = {"Algorithm": r.algorithm_name, "Ranking": r.ranking_score}
@@ -1648,7 +1648,7 @@ with tab_ai:
 
     with export_cols[2]:
         if st.session_state.gemini_response:
-            if st.button("📝 Export AI Report", use_container_width=True):
+            if st.button("📝 Export AI Report", width='stretch'):
                 st.download_button(
                     "⬇️ Download Report",
                     st.session_state.gemini_response,
@@ -1670,7 +1670,7 @@ with tab_viz:
     with st.expander("📏 Cluster Size Distribution"):
         try:
             fig_sizes = DistributionPlotter.cluster_sizes(active_labels)
-            st.plotly_chart(fig_sizes, use_container_width=True)
+            st.plotly_chart(fig_sizes, width='stretch')
         except Exception as e:
             st.warning(f"Size plot error: {e}")
 
@@ -1681,7 +1681,7 @@ with tab_viz:
                 X_data, active_labels,
                 feature_names=st.session_state.feature_names,
             )
-            st.plotly_chart(fig_parallel, use_container_width=True)
+            st.plotly_chart(fig_parallel, width='stretch')
         except Exception as e:
             st.warning(f"Parallel coordinates error: {e}")
 
@@ -1697,7 +1697,7 @@ with tab_viz:
                     feature_names=st.session_state.feature_names,
                     feature_idx=box_idx,
                 )
-                st.plotly_chart(fig_box, use_container_width=True)
+                st.plotly_chart(fig_box, width='stretch')
             except Exception as e:
                 st.warning(f"Box plot error: {e}")
 
@@ -1712,7 +1712,7 @@ with tab_viz:
                     X_data, active_labels,
                     feature_idx=hist_idx, feature_name=hist_feat,
                 )
-                st.plotly_chart(fig_hist, use_container_width=True, key="fig_hist_tab5_plot")
+                st.plotly_chart(fig_hist, width='stretch', key="fig_hist_tab5_plot")
             except Exception as e:
                 st.warning(f"Histogram plot error: {e}")
 
@@ -1721,7 +1721,7 @@ with tab_viz:
         with st.expander("🌳 Hierarchical Dendrogram"):
             try:
                 fig_dendro = DendrogramPlotter.plot(X_data)
-                st.plotly_chart(fig_dendro, use_container_width=True)
+                st.plotly_chart(fig_dendro, width='stretch')
             except Exception as e:
                 st.warning(f"Dendrogram error: {e}")
 
@@ -1735,7 +1735,7 @@ with tab_viz:
                         gd["k_values"], gd["gaps"],
                         gd.get("gap_stds"), gd.get("optimal_k"),
                     )
-                    st.plotly_chart(fig_gap, use_container_width=True)
+                    st.plotly_chart(fig_gap, width='stretch')
                 except Exception as e:
                     st.warning(f"Gap plot error: {e}")
 
@@ -1768,7 +1768,7 @@ with tab_viz:
                             title=f"Comparison: {comparison_metric}",
                             ylabel=comparison_metric,
                         )
-                        st.plotly_chart(fig_cmp, use_container_width=True)
+                        st.plotly_chart(fig_cmp, width='stretch')
                     except Exception as e:
                         st.warning(f"Comparison error: {e}")
 
@@ -1792,7 +1792,7 @@ with tab_stability:
             )
             cv_folds = st.slider("Folds", 3, 10, 5, key="cv_folds")
 
-            if st.button("Run CV Stability", use_container_width=True, key="cv_run"):
+            if st.button("Run CV Stability", width='stretch', key="cv_run"):
                 cv_result_obj = next(
                     (r for r in successful if r.algorithm_name == cv_algo), None
                 )
@@ -1820,7 +1820,7 @@ with tab_stability:
             )
             temp_checkpoints = st.slider("Checkpoints", 5, 20, 10, key="temp_cp")
 
-            if st.button("Run Temporal Stability", use_container_width=True, key="temp_run"):
+            if st.button("Run Temporal Stability", width='stretch', key="temp_run"):
                 temp_result_obj = next(
                     (r for r in successful if r.algorithm_name == temp_algo), None
                 )
@@ -1852,7 +1852,7 @@ with tab_stability:
                             paper_bgcolor=DARK_BG,
                             font=dict(color=TEXT_COLOR),
                         )
-                        st.plotly_chart(fig_temp, use_container_width=True)
+                        st.plotly_chart(fig_temp, width='stretch')
 
         # Stability export
         with st.expander("📥 Export Stability Reports"):
@@ -1921,7 +1921,7 @@ with tab_run:
                     "Count": label_counts.values.tolist(),
                     "Percentage": [f"{v / len(result.labels) * 100:.1f}%" for v in label_counts.values],
                 }
-                st.dataframe(pd.DataFrame(lc_data), use_container_width=True)
+                st.dataframe(pd.DataFrame(lc_data), width='stretch')
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -1942,7 +1942,7 @@ with tab_profile:
                 desc_df["skewness"] = df_raw[num_cols].skew()
                 desc_df["kurtosis"] = df_raw[num_cols].kurtosis()
                 desc_df["missing_%"] = (df_raw[num_cols].isnull().sum() / len(df_raw) * 100).round(2)
-                st.dataframe(desc_df, use_container_width=True, height=350)
+                st.dataframe(desc_df, width='stretch', height=350)
 
             with st.expander("📊 Feature Histograms"):
                 hist_col = st.selectbox("Feature", num_cols, index=0, key="hist_feat")
@@ -1962,7 +1962,7 @@ with tab_profile:
                     paper_bgcolor=DARK_BG,
                     font=dict(color=TEXT_COLOR),
                 )
-                st.plotly_chart(fig_hist, use_container_width=True, key="fig_dist_hist_extra")
+                st.plotly_chart(fig_hist, width='stretch', key="fig_dist_hist_extra")
 
             with st.expander("🔢 Scatter Plot Explorer"):
                 s_c1, s_c2 = st.columns(2)
@@ -2002,7 +2002,7 @@ with tab_profile:
                     plot_bgcolor=DARK_BG, paper_bgcolor=DARK_BG,
                     font=dict(color=TEXT_COLOR),
                 )
-                st.plotly_chart(fig_scatter_explore, use_container_width=True)
+                st.plotly_chart(fig_scatter_explore, width='stretch')
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -2025,7 +2025,7 @@ with tab_preprocess:
                     "Std Dev": np.round(np.sqrt(variances), 6),
                     "Mean": np.round(np.mean(X_proc, axis=0), 6),
                 })
-                st.dataframe(var_df, use_container_width=True)
+                st.dataframe(var_df, width='stretch')
 
                 fig_var_bar = go.Figure()
                 fig_var_bar.add_trace(go.Bar(
@@ -2039,7 +2039,7 @@ with tab_preprocess:
                     plot_bgcolor=DARK_BG, paper_bgcolor=DARK_BG,
                     font=dict(color=TEXT_COLOR),
                 )
-                st.plotly_chart(fig_var_bar, use_container_width=True)
+                st.plotly_chart(fig_var_bar, width='stretch')
 
             with st.expander("🔗 Post-Processing Correlation Matrix"):
                 X_proc_df = pd.DataFrame(
@@ -2050,7 +2050,7 @@ with tab_preprocess:
                 fig_corr_post = HeatmapPlotter.correlation_heatmap(
                     corr_post, title="Post-Processing Correlations"
                 )
-                st.plotly_chart(fig_corr_post, use_container_width=True)
+                st.plotly_chart(fig_corr_post, width='stretch')
 
             with st.expander("📋 Dropped Columns"):
                 if result.dropped_columns:
@@ -2113,7 +2113,7 @@ with tab_ai:
 
     for i, (label, prompt) in enumerate(templates):
         with template_cols[i]:
-            if st.button(label, use_container_width=True, key=f"tmpl_{i}"):
+            if st.button(label, width='stretch', key=f"tmpl_{i}"):
                 st.session_state["ai_prompt_pushed"] = prompt
                 st.rerun()
 

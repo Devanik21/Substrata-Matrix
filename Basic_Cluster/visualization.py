@@ -593,6 +593,25 @@ class StabilityPlotter:
         return _apply_dark(fig)
 
 
+class GeneralBarPlotter:
+    @staticmethod
+    def plot(names: List[str], values: List[float], title: str,
+             ylabel: str = "Score", color: str = ACCENT_CYAN) -> go.Figure:
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=names, y=values,
+            marker_color=color,
+            text=[f"{v:.4f}" for v in values],
+            textposition="auto",
+        ))
+        fig.update_layout(
+            title=title, xaxis_title="Algorithm", yaxis_title=ylabel,
+            plot_bgcolor=DARK_BG, paper_bgcolor=DARK_BG,
+            font=dict(color=TEXT_COLOR),
+        )
+        return _apply_dark(fig)
+
+
 # ──────────────────────────────────────────────────────────────────
 # METRIC GAUGE
 # ──────────────────────────────────────────────────────────────────

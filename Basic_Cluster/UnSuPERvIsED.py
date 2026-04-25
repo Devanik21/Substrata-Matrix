@@ -1279,7 +1279,7 @@ with tab_viz:
             fig_dist = DistributionPlotter.feature_histogram(
                 X_data, active_labels, dist_idx, dist_feat,
             )
-            st.plotly_chart(fig_dist, use_container_width=True)
+            st.plotly_chart(fig_dist, use_container_width=True, key="fig_dist_hist_tab5")
 
     # ── Cluster Profiler ──
     with st.expander("🧾 Cluster Feature Profiles"):
@@ -1457,8 +1457,8 @@ with tab_stability:
                     if pr.feature_dropout_scores:
                         st.markdown("**Feature Dropout Scores:**")
                         fd_df = pd.DataFrame({
-                            "Feature Dropped": list(range(len(pr.feature_dropout_scores))),
-                            "ARI After Drop": pr.feature_dropout_scores,
+                            "Feature Index": list(pr.feature_dropout_scores.keys()),
+                            "ARI After Drop": list(pr.feature_dropout_scores.values()),
                         })
                         st.dataframe(fd_df, use_container_width=True)
 
@@ -1699,14 +1699,14 @@ with tab_viz:
     with st.expander("📊 Feature Histograms by Cluster"):
         fnames = st.session_state.feature_names
         if fnames:
-            hist_feat = st.selectbox("Feature", fnames, index=0, key="hist_feat_9w0m4e")
+            hist_feat = st.selectbox("Feature", fnames, index=0, key="hist_feat_tab5_unique")
             hist_idx = fnames.index(hist_feat)
             try:
                 fig_hist = DistributionPlotter.feature_histogram(
                     X_data, active_labels,
                     feature_idx=hist_idx, feature_name=hist_feat,
                 )
-                st.plotly_chart(fig_hist, use_container_width=True)
+                st.plotly_chart(fig_hist, use_container_width=True, key="fig_hist_tab5_plot")
             except Exception as e:
                 st.warning(f"Histogram plot error: {e}")
 
@@ -1956,7 +1956,7 @@ with tab_profile:
                     paper_bgcolor=DARK_BG,
                     font=dict(color=TEXT_COLOR),
                 )
-                st.plotly_chart(fig_hist, use_container_width=True)
+                st.plotly_chart(fig_hist, use_container_width=True, key="fig_dist_hist_extra")
 
             with st.expander("🔢 Scatter Plot Explorer"):
                 s_c1, s_c2 = st.columns(2)

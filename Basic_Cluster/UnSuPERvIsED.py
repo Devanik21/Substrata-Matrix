@@ -1189,11 +1189,14 @@ with tab_viz:
             st.plotly_chart(fig_2d, use_container_width=True)
 
         if show_3d and st.session_state.X_3d is not None:
-            fig_3d = ScatterPlotter.scatter_3d(
-                st.session_state.X_3d, active_labels,
-                title=f"{dim_method.upper()} 3D — {active_result.display_name}",
-            )
-            st.plotly_chart(fig_3d, use_container_width=True)
+            if st.session_state.X_3d.shape[1] >= 3:
+                fig_3d = ScatterPlotter.scatter_3d(
+                    st.session_state.X_3d, active_labels,
+                    title=f"{dim_method.upper()} 3D — {active_result.display_name}",
+                )
+                st.plotly_chart(fig_3d, use_container_width=True)
+            else:
+                st.warning("⚠️ Cannot render 3D plot: Data has fewer than 3 components.")
 
     # ── Silhouette Analysis ──
     st.markdown("---")

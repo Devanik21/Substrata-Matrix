@@ -1687,11 +1687,28 @@ with tab_viz:
             box_idx = fnames.index(box_feat)
             try:
                 fig_box = DistributionPlotter.feature_boxplots(
-                    X_data, active_labels, box_idx, box_feat,
+                    X_data, active_labels,
+                    feature_names=st.session_state.feature_names,
+                    feature_idx=box_idx,
                 )
                 st.plotly_chart(fig_box, use_container_width=True)
             except Exception as e:
                 st.warning(f"Box plot error: {e}")
+
+    # ── Feature Histograms by Cluster ──
+    with st.expander("📊 Feature Histograms by Cluster"):
+        fnames = st.session_state.feature_names
+        if fnames:
+            hist_feat = st.selectbox("Feature", fnames, index=0, key="hist_feat")
+            hist_idx = fnames.index(hist_feat)
+            try:
+                fig_hist = DistributionPlotter.feature_histogram(
+                    X_data, active_labels,
+                    feature_idx=hist_idx, feature_name=hist_feat,
+                )
+                st.plotly_chart(fig_hist, use_container_width=True)
+            except Exception as e:
+                st.warning(f"Histogram plot error: {e}")
 
     # ── Dendrogram (if few samples) ──
     if X_data.shape[0] <= 500:

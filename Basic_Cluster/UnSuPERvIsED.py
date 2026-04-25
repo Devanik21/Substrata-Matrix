@@ -1555,7 +1555,7 @@ with tab_ai:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=gemini_key)
-                model = genai.GenerativeModel("gemini-2.0-flash-lite")
+                model = genai.GenerativeModel("gemini-flash-lite-latest")
                 with st.spinner("🧠 Thinking..."):
                     response = model.generate_content(full_prompt)
                     ai_text = response.text

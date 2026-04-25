@@ -25,8 +25,9 @@ from sklearn.metrics import (
     adjusted_rand_score, normalized_mutual_info_score,
     fowlkes_mallows_score, v_measure_score,
     adjusted_mutual_info_score, homogeneity_score,
-    completeness_score, contingency_matrix,
+    completeness_score,
 )
+from sklearn.metrics.cluster import contingency_matrix
 from sklearn.cluster import KMeans
 from sklearn.neighbors import NearestNeighbors
 

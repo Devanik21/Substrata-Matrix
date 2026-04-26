@@ -1134,3 +1134,440 @@ def consensus_summary(result: ConsensusResult) -> str:
         f"Diversity={result.diversity_score:.3f} | "
         f"Runtime={result.runtime_seconds:.2f}s"
     )
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL POLISH — ADVANCED CONSENSUS ADDITIONS
+# ══════════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────────
+# CLUSTER-LEVEL CONSENSUS CONFIDENCE
+# ──────────────────────────────────────────────────────────────────
+
+class ClusterLevelConsensus:
+    """
+    Per-cluster confidence: how consistently does each consensus
+    cluster appear across the ensemble?
+    High confidence → all algorithms agree on this cluster.
+    Low confidence  → cluster is an artifact of a minority of algorithms.
+    """
+    def compute(self, consensus_labels: np.ndarray,
+                label_arrays: List[np.ndarray],
+                weights: Optional[List[float]] = None) -> Dict[str, Any]:
+        unique = [c for c in np.unique(consensus_labels) if c != -1]
+        n = len(consensus_labels)
+        if weights is None:
+            weights = [1.0] * len(label_arrays)
+        w_total = sum(weights)
+
+        cluster_conf = {}
+        for c in unique:
+            cons_mask = consensus_labels == c
+            jaccard_scores = []
+            for labels, w in zip(label_arrays, weights):
+                if len(labels) != n: continue
+                best_j = 0.0
+                for nc in np.unique(labels[labels != -1]):
+                    nm = labels == nc
+                    inter = int((cons_mask & nm).sum())
+                    union = int((cons_mask | nm).sum())
+                    j = inter / max(union, 1)
+                    best_j = max(best_j, j)
+                jaccard_scores.append(best_j * (w / w_total))
+            mean_j = float(sum(jaccard_scores))
+            cluster_conf[int(c)] = {
+                "confidence": round(mean_j, 4),
+                "size": int(cons_mask.sum()),
+                "is_confident": mean_j >= 0.5,
+                "grade": ("High" if mean_j >= 0.7 else "Medium" if mean_j >= 0.4 else "Low"),
+            }
+        overall = float(np.mean([v["confidence"] for v in cluster_conf.values()])) if cluster_conf else 0.0
+        return {
+            "per_cluster": cluster_conf,
+            "overall_confidence": round(overall, 4),
+            "n_high_confidence": sum(1 for v in cluster_conf.values() if v["is_confident"]),
+            "n_total": len(unique),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# UNCERTAIN POINT DETECTOR (consensus-based)
+# ──────────────────────────────────────────────────────────────────
+
+class ConsensusUncertaintyDetector:
+    """
+    Identifies ambiguous points whose cluster assignment is contested
+    across ensemble members. Uses co-association entropy as the signal.
+    High entropy → point is disputed (sits between clusters).
+    Low entropy  → point is consistently assigned to the same cluster.
+    """
+    def detect(self, coassoc: np.ndarray,
+                consensus_labels: np.ndarray,
+                entropy_threshold: float = 0.85) -> Dict[str, Any]:
+        n = len(consensus_labels)
+        if coassoc is None or coassoc.shape[0] != n:
+            return {"uncertain_indices": np.array([]), "entropies": np.zeros(n)}
+
+        # Row-wise entropy of co-association distributions
+        eps = 1e-10
+        row_entropy = np.zeros(n)
+        for i in range(n):
+            row = coassoc[i]
+            p = row / (row.sum() + eps)
+            row_entropy[i] = float(-np.sum(p * np.log2(p + eps)))
+
+        # Normalise
+        max_ent = float(np.log2(n))
+        norm_entropy = row_entropy / max(max_ent, 1e-6)
+        uncertain_mask = norm_entropy > entropy_threshold
+        uncertain_idx  = np.where(uncertain_mask)[0]
+
+        return {
+            "uncertain_indices": uncertain_idx,
+            "entropies": norm_entropy,
+            "n_uncertain": int(uncertain_mask.sum()),
+            "uncertainty_rate": round(float(uncertain_mask.mean()), 4),
+            "entropy_threshold": entropy_threshold,
+            "interpretation": (
+                f"{int(uncertain_mask.sum())} points ({uncertain_mask.mean()*100:.1f}%) "
+                f"have ambiguous cluster assignments. Consider these as potential "
+                f"boundary points or outliers."
+            ),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# EVIDENCE-WEIGHTED MAJORITY VOTER
+# ──────────────────────────────────────────────────────────────────
+
+class EvidenceWeightedMajority:
+    """
+    Advanced voting: each algorithm votes for each point's cluster,
+    weighted by its silhouette-based evidence strength.
+    Points where no algorithm has >50% evidence are flagged uncertain.
+    """
+    def __init__(self, n_clusters: int = 8, evidence_threshold: float = 0.5):
+        self.n_clusters = n_clusters
+        self.evidence_threshold = evidence_threshold
+
+    def vote(self, label_arrays: List[np.ndarray],
+              evidence_weights: List[float]) -> Dict[str, Any]:
+        if not label_arrays:
+            return {"labels": np.array([]), "confidence": np.array([])}
+        n = len(label_arrays[0])
+        k = self.n_clusters
+        vote_matrix = np.zeros((n, k + 1), dtype=np.float64)
+        w_total = sum(evidence_weights) + 1e-10
+
+        for labels, w in zip(label_arrays, evidence_weights):
+            if len(labels) != n: continue
+            norm_w = w / w_total
+            for i in range(n):
+                c = int(labels[i])
+                bucket = c if 0 <= c < k else k
+                vote_matrix[i, bucket] += norm_w
+
+        max_votes = vote_matrix[:, :k].max(axis=1)
+        winners   = vote_matrix[:, :k].argmax(axis=1).astype(np.int32)
+        # Flag uncertain points
+        uncertain = max_votes < self.evidence_threshold
+        winners[uncertain] = -1
+
+        return {
+            "labels": winners,
+            "confidence": max_votes,
+            "vote_matrix": vote_matrix[:, :k],
+            "n_uncertain": int(uncertain.sum()),
+            "uncertainty_rate": round(float(uncertain.mean()), 4),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# CONSENSUS QUALITY DECOMPOSER
+# ──────────────────────────────────────────────────────────────────
+
+class ConsensusQualityDecomposer:
+    """
+    Decomposes consensus quality into interpretable components:
+    - Structural quality (internal metrics)
+    - Ensemble agreement (how much algorithms agree on consensus)
+    - Diversity bonus (diversity × quality synergy)
+    """
+    def decompose(self, consensus_result: "ConsensusResult",
+                  X: np.ndarray,
+                  label_arrays: List[np.ndarray]) -> Dict[str, Any]:
+        labels = consensus_result.labels
+        if len(labels) == 0 or len(np.unique(labels[labels != -1])) < 2:
+            return {}
+
+        # Structural quality (silhouette proxy)
+        try:
+            from sklearn.metrics import silhouette_score
+            valid = labels != -1
+            if valid.sum() > 10 and len(np.unique(labels[valid])) >= 2:
+                sil = float(silhouette_score(
+                    X[valid], labels[valid],
+                    sample_size=min(3000, valid.sum()), random_state=42))
+            else:
+                sil = 0.0
+        except Exception:
+            sil = 0.0
+
+        # Ensemble agreement (mean ARI between consensus and each member)
+        from sklearn.metrics import adjusted_rand_score
+        agreement_scores = []
+        for la in label_arrays:
+            if len(la) != len(labels): continue
+            valid2 = (labels != -1) & (la != -1)
+            if valid2.sum() < 4: continue
+            try:
+                ari = float(adjusted_rand_score(labels[valid2], la[valid2]))
+                agreement_scores.append(max(0.0, ari))
+            except Exception:
+                pass
+        mean_agree = float(np.mean(agreement_scores)) if agreement_scores else 0.0
+
+        # Diversity bonus
+        div = consensus_result.diversity_score
+        div_bonus = float(div * (1 - mean_agree))  # High diversity + low agreement = high bonus
+
+        # Composite
+        composite = (0.4 * (sil + 1) / 2 + 0.35 * mean_agree + 0.25 * div) * 100
+
+        return {
+            "structural_quality": round((sil + 1) / 2, 4),
+            "ensemble_agreement": round(mean_agree, 4),
+            "diversity_score": round(div, 4),
+            "diversity_bonus": round(div_bonus, 4),
+            "composite_quality": round(min(composite, 100), 2),
+            "silhouette": round(sil, 4),
+            "interpretation": (
+                f"Structural quality: {(sil+1)/2*100:.0f}/100 · "
+                f"Ensemble agreement: {mean_agree*100:.0f}% · "
+                f"Diversity bonus: +{div_bonus*100:.0f}pts"
+            ),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# SPECTRAL CONSENSUS (Graph-Cut Approach)
+# ──────────────────────────────────────────────────────────────────
+
+class SpectralConsensus:
+    """
+    Treats the co-association matrix as a graph adjacency matrix.
+    Applies normalised graph Laplacian spectral decomposition to
+    find the optimal cut. More principled than hierarchical EAC for
+    non-convex cluster shapes.
+    """
+    def __init__(self, n_clusters: int = 8, random_state: int = 42):
+        self.n_clusters = n_clusters
+        self.random_state = random_state
+
+    def extract(self, coassoc: np.ndarray) -> np.ndarray:
+        try:
+            from sklearn.cluster import SpectralClustering
+            sc = SpectralClustering(
+                n_clusters=self.n_clusters,
+                affinity="precomputed",
+                assign_labels="discretize",
+                random_state=self.random_state,
+                n_init=10,
+            )
+            return sc.fit_predict(np.clip(coassoc, 0, 1)).astype(np.int32)
+        except Exception as e:
+            logger.warning(f"SpectralConsensus failed: {e}; falling back to EAC")
+            return EACConsensus(n_clusters=self.n_clusters).extract(coassoc)
+
+
+# ──────────────────────────────────────────────────────────────────
+# BOOTSTRAP CONSENSUS EVALUATOR
+# ──────────────────────────────────────────────────────────────────
+
+class BootstrapConsensusEvaluator:
+    """
+    Evaluates the stability of the consensus result itself via
+    bootstrapping: repeatedly samples a subset of ensemble members
+    and checks if the consensus partition is stable.
+    """
+    def __init__(self, n_bootstrap: int = 10, subsample_frac: float = 0.7,
+                 random_state: int = 42):
+        self.n_bootstrap = n_bootstrap
+        self.subsample_frac = subsample_frac
+        self.rng = np.random.default_rng(random_state)
+
+    def evaluate(self, X: np.ndarray,
+                 label_arrays: List[np.ndarray],
+                 weights: Optional[List[float]] = None,
+                 n_clusters: int = 8) -> Dict[str, Any]:
+        from sklearn.metrics import adjusted_rand_score
+
+        n_algos = len(label_arrays)
+        n_sub   = max(2, int(n_algos * self.subsample_frac))
+        cam     = CoAssociationMatrixBuilder()
+
+        # Full consensus
+        coassoc_full = cam.build(label_arrays, weights=weights)
+        labels_full  = EACConsensus(n_clusters=n_clusters).extract(coassoc_full)
+
+        ari_scores = []
+        for _ in range(self.n_bootstrap):
+            idx = self.rng.choice(n_algos, n_sub, replace=False)
+            sub_arrays = [label_arrays[i] for i in idx]
+            sub_weights = [weights[i] for i in idx] if weights else None
+            try:
+                co_sub = cam.build(sub_arrays, weights=sub_weights)
+                labs_sub = EACConsensus(n_clusters=n_clusters).extract(co_sub)
+                if len(labs_sub) == len(labels_full):
+                    ari = float(adjusted_rand_score(labels_full, labs_sub))
+                    ari_scores.append(ari)
+            except Exception:
+                pass
+
+        if not ari_scores:
+            return {"consensus_stability": None}
+
+        mean_ari = float(np.mean(ari_scores))
+        std_ari  = float(np.std(ari_scores))
+        return {
+            "consensus_stability_ari": round(mean_ari, 4),
+            "consensus_stability_std": round(std_ari, 4),
+            "n_bootstrap": len(ari_scores),
+            "is_stable": mean_ari >= 0.7,
+            "interpretation": (
+                f"Consensus is {'stable' if mean_ari >= 0.7 else 'unstable'} "
+                f"(ARI={mean_ari:.3f}±{std_ari:.3f} across bootstrap subsets of the ensemble)."
+            ),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# CONSENSUS CLUSTER PROFILER
+# ──────────────────────────────────────────────────────────────────
+
+class ConsensusClusterProfiler:
+    """
+    Creates rich statistical profiles for each consensus cluster:
+    - Mean and std of each feature
+    - Dominant algorithm support
+    - Outlier rate within cluster
+    - Interpretive labels via feature signature
+    """
+    def profile(self, X: np.ndarray,
+                consensus_labels: np.ndarray,
+                feature_names: Optional[List[str]] = None,
+                original_df: Optional[Any] = None) -> Dict[int, Dict[str, Any]]:
+        unique = [c for c in np.unique(consensus_labels) if c != -1]
+        fnames = feature_names or [f"f{i}" for i in range(X.shape[1])]
+        profiles = {}
+        global_mean = X.mean(axis=0)
+        global_std  = X.std(axis=0) + 1e-10
+
+        for c in unique:
+            mask = consensus_labels == c
+            pts  = X[mask]
+            if len(pts) == 0:
+                continue
+            centroid = pts.mean(axis=0)
+            z_scores = (centroid - global_mean) / global_std
+
+            # Dominant features (highest absolute z-score)
+            top_feat_idx = np.argsort(np.abs(z_scores))[::-1][:5]
+            signature = [
+                {
+                    "feature": fnames[i] if i < len(fnames) else f"f{i}",
+                    "z_score": round(float(z_scores[i]), 3),
+                    "direction": "above" if z_scores[i] > 0 else "below",
+                }
+                for i in top_feat_idx
+            ]
+
+            # Within-cluster outlier rate (IQR method)
+            q25, q75 = np.percentile(pts, 25, axis=0), np.percentile(pts, 75, axis=0)
+            iqr = q75 - q25
+            outlier_mask = ((pts < q25 - 1.5*iqr) | (pts > q75 + 1.5*iqr)).any(axis=1)
+            outlier_rate = float(outlier_mask.mean())
+
+            profiles[int(c)] = {
+                "size": int(mask.sum()),
+                "fraction": round(float(mask.mean()), 4),
+                "centroid": centroid.tolist(),
+                "std": pts.std(axis=0).tolist(),
+                "feature_signature": signature,
+                "outlier_rate": round(outlier_rate, 4),
+                "cohesion_score": round(float(1 - pts.std(axis=0).mean()), 4),
+                "label": self._auto_label(signature),
+            }
+        return profiles
+
+    @staticmethod
+    def _auto_label(signature: List[Dict]) -> str:
+        """Generate a human-readable cluster label from feature signature."""
+        if not signature:
+            return "Unlabelled"
+        top = signature[0]
+        direction = "High" if top["direction"] == "above" else "Low"
+        fname = top["feature"][:20]
+        return f"{direction}-{fname}"
+
+
+# ──────────────────────────────────────────────────────────────────
+# MULTI-RESOLUTION CONSENSUS
+# ──────────────────────────────────────────────────────────────────
+
+class MultiResolutionConsensus:
+    """
+    Builds consensus at multiple resolutions (different k values)
+    and identifies stable consensus structures that appear consistently
+    across resolutions — these are the most reliable partitions.
+    """
+    def __init__(self, k_range: Optional[List[int]] = None,
+                 random_state: int = 42):
+        self.k_range = k_range or [2, 3, 4, 5, 6, 8, 10, 12]
+        self.random_state = random_state
+
+    def run(self, X: np.ndarray,
+            label_arrays: List[np.ndarray],
+            weights: Optional[List[float]] = None) -> Dict[str, Any]:
+        cam = CoAssociationMatrixBuilder()
+        coassoc = cam.build(label_arrays, weights=weights)
+
+        results_by_k = {}
+        quality_by_k = {}
+        for k in self.k_range:
+            if k >= len(X):
+                continue
+            try:
+                labels = EACConsensus(
+                    n_clusters=k, linkage_method="average").extract(coassoc)
+                try:
+                    from sklearn.metrics import silhouette_score
+                    valid = labels != -1
+                    if valid.sum() > 10 and len(np.unique(labels[valid])) >= 2:
+                        sil = float(silhouette_score(
+                            X[valid], labels[valid],
+                            sample_size=min(3000, valid.sum()), random_state=42))
+                    else:
+                        sil = -1.0
+                except Exception:
+                    sil = -1.0
+                results_by_k[k] = labels
+                quality_by_k[k] = round(sil, 4)
+            except Exception:
+                pass
+
+        if not quality_by_k:
+            return {"best_k": None, "quality_by_k": {}, "labels": None}
+
+        best_k = max(quality_by_k, key=quality_by_k.get)
+        return {
+            "best_k": best_k,
+            "quality_by_k": quality_by_k,
+            "k_values": list(quality_by_k.keys()),
+            "silhouettes": list(quality_by_k.values()),
+            "labels": results_by_k.get(best_k),
+            "interpretation": (
+                f"Multi-resolution analysis: optimal k={best_k} "
+                f"(silhouette={quality_by_k[best_k]:.3f})"
+            ),
+        }

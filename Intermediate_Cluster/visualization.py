@@ -1405,3 +1405,371 @@ def make_subplots_dark(rows: int, cols: int,
         height=height,
     )
     return fig
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL POLISH — ADVANCED VISUALIZATION ADDITIONS
+# ══════════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────────
+# DENSITY CONTOUR PLOT
+# ──────────────────────────────────────────────────────────────────
+
+class DensityContourBuilder:
+    """KDE density contour overlay on cluster scatter — reveals where
+    each cluster's probability mass is concentrated."""
+
+    def build(self, X: np.ndarray, labels: np.ndarray,
+              method: str = "PCA", algorithm_name: str = "",
+              n_contour_pts: int = 200) -> Any:
+        import plotly.graph_objects as go
+        emb = EmbeddingEngine()
+        X_2d = emb.embed(X, method=method, n_components=2)
+
+        fig = go.Figure()
+        unique = sorted(c for c in set(labels.tolist()) if c != -1)
+
+        for c in unique:
+            mask = labels == c
+            pts = X_2d[mask]
+            color = Theme.cluster_color(c)
+
+            # Scatter
+            fig.add_trace(go.Scatter(
+                x=pts[:, 0], y=pts[:, 1], mode="markers",
+                name=f"Cluster {c}",
+                marker=dict(color=color, size=4, opacity=0.55),
+            ))
+
+            # KDE contour
+            if len(pts) >= 10:
+                try:
+                    from scipy.stats import gaussian_kde
+                    kde = gaussian_kde(pts.T, bw_method="scott")
+                    x_range = np.linspace(pts[:, 0].min() - 0.5, pts[:, 0].max() + 0.5, n_contour_pts)
+                    y_range = np.linspace(pts[:, 1].min() - 0.5, pts[:, 1].max() + 0.5, n_contour_pts)
+                    xx, yy = np.meshgrid(x_range, y_range)
+                    zz = kde(np.vstack([xx.ravel(), yy.ravel()])).reshape(xx.shape)
+                    fig.add_trace(go.Contour(
+                        x=x_range, y=y_range, z=zz,
+                        showscale=False, showlegend=False,
+                        line=dict(width=1.5, color=color),
+                        contours=dict(
+                            coloring="none",
+                            showlabels=False,
+                            start=float(zz.max() * 0.1),
+                            end=float(zz.max() * 0.9),
+                            size=float(zz.max() * 0.2),
+                        ),
+                        opacity=0.7,
+                    ))
+                except Exception:
+                    pass
+
+        layout = Theme.plotly_layout(
+            f"{algorithm_name} — Density Contour ({method})", height=540)
+        layout["xaxis"]["title"] = f"{method} 1"
+        layout["yaxis"]["title"] = f"{method} 2"
+        fig.update_layout(**layout)
+        return fig
+
+
+# ──────────────────────────────────────────────────────────────────
+# CLUSTER NETWORK GRAPH
+# ──────────────────────────────────────────────────────────────────
+
+class ClusterNetworkBuilder:
+    """
+    Node-link graph where each node is a cluster (sized by membership)
+    and edges represent separation distance between cluster centroids.
+    Thick/short edges = clusters close together (potential confusion risk).
+    """
+    def build(self, X: np.ndarray, labels: np.ndarray,
+              algorithm_name: str = "") -> Any:
+        import plotly.graph_objects as go
+        from scipy.spatial.distance import cdist
+
+        unique = [c for c in np.unique(labels) if c != -1]
+        if len(unique) < 2:
+            return empty_figure("Need ≥ 2 clusters for network view")
+
+        centroids = np.array([X[labels == c].mean(axis=0) for c in unique])
+        sizes     = np.array([(labels == c).sum() for c in unique])
+
+        # 2D layout via PCA on centroids
+        if centroids.shape[1] >= 2:
+            from sklearn.decomposition import PCA
+            pos_2d = PCA(n_components=2).fit_transform(centroids)
+        else:
+            pos_2d = np.column_stack([centroids[:, 0], np.zeros(len(centroids))])
+
+        dist_mat = cdist(centroids, centroids)
+        max_dist = dist_mat.max() + 1e-10
+        np.fill_diagonal(dist_mat, np.inf)
+
+        fig = go.Figure()
+
+        # Edges
+        for i in range(len(unique)):
+            for j in range(i + 1, len(unique)):
+                d = dist_mat[i, j]
+                opacity = float(1.0 - d / max_dist) * 0.6
+                width   = float(1.0 - d / max_dist) * 4 + 0.5
+                fig.add_trace(go.Scatter(
+                    x=[pos_2d[i, 0], pos_2d[j, 0], None],
+                    y=[pos_2d[i, 1], pos_2d[j, 1], None],
+                    mode="lines",
+                    line=dict(color=Theme.BORDER, width=width),
+                    opacity=opacity,
+                    showlegend=False,
+                    hoverinfo="skip",
+                ))
+
+        # Nodes
+        for i, c in enumerate(unique):
+            node_size = int(10 + 40 * (sizes[i] / sizes.max()))
+            fig.add_trace(go.Scatter(
+                x=[pos_2d[i, 0]], y=[pos_2d[i, 1]],
+                mode="markers+text",
+                name=f"Cluster {c}",
+                text=[f"C{c}"],
+                textposition="middle center",
+                textfont=dict(color="#ffffff", size=11, family="JetBrains Mono"),
+                marker=dict(
+                    color=Theme.cluster_color(c),
+                    size=node_size, opacity=0.9,
+                    line=dict(width=2, color="#ffffff"),
+                ),
+                hovertemplate=(f"<b>Cluster {c}</b><br>"
+                                f"Size: {sizes[i]}<br>"
+                                f"x: {pos_2d[i,0]:.3f}<br>"
+                                f"y: {pos_2d[i,1]:.3f}<extra></extra>"),
+            ))
+
+        layout = Theme.plotly_layout(
+            f"{algorithm_name} — Cluster Network Graph", height=520)
+        layout["xaxis"]["showgrid"] = False
+        layout["xaxis"]["showticklabels"] = False
+        layout["yaxis"]["showgrid"] = False
+        layout["yaxis"]["showticklabels"] = False
+        fig.update_layout(**layout)
+        return fig
+
+
+# ──────────────────────────────────────────────────────────────────
+# GAP STATISTIC VISUALISER
+# ──────────────────────────────────────────────────────────────────
+
+class GapStatisticPlotter:
+    """Renders Gap Statistic result with error bars and optimal k marker."""
+
+    def build(self, gap_result: Dict[str, Any]) -> Any:
+        import plotly.graph_objects as go
+        ks   = gap_result.get("k_values", [])
+        gaps = gap_result.get("gaps", [])
+        sks  = gap_result.get("sk", [])
+        opt  = gap_result.get("optimal_k")
+
+        if not ks or not gaps:
+            return empty_figure("No Gap Statistic data")
+
+        fig = go.Figure()
+
+        # Confidence band
+        upper = [g + s for g, s in zip(gaps, sks)]
+        lower = [g - s for g, s in zip(gaps, sks)]
+        fig.add_trace(go.Scatter(
+            x=ks + ks[::-1], y=upper + lower[::-1],
+            fill="toself", fillcolor=Theme.ACCENT_VIOLET,
+            opacity=0.15, line=dict(width=0), showlegend=False,
+        ))
+        fig.add_trace(go.Scatter(
+            x=ks, y=gaps, mode="lines+markers", name="Gap(k)",
+            line=dict(color=Theme.ACCENT_VIOLET, width=2),
+            marker=dict(color=Theme.ACCENT_VIOLET, size=8),
+            error_y=dict(array=sks, color=Theme.TEXT_DIM, thickness=1.5, width=4),
+        ))
+
+        if opt and opt in ks:
+            idx = ks.index(opt)
+            fig.add_vline(x=opt, line_dash="dash", line_color=Theme.ACCENT_GREEN,
+                          annotation_text=f"Optimal k={opt}",
+                          annotation_font_color=Theme.ACCENT_GREEN)
+            fig.add_trace(go.Scatter(
+                x=[opt], y=[gaps[idx]], mode="markers", name=f"Optimal k={opt}",
+                marker=dict(color=Theme.ACCENT_GREEN, size=14, symbol="star"),
+            ))
+
+        layout = Theme.plotly_layout("Gap Statistic — Optimal k Selection", height=420)
+        layout["xaxis"]["title"] = "Number of Clusters (k)"
+        layout["yaxis"]["title"] = "Gap(k)"
+        layout["xaxis"]["dtick"] = 1
+        fig.update_layout(**layout)
+        return fig
+
+
+# ──────────────────────────────────────────────────────────────────
+# CLUSTERABILITY GAUGE
+# ──────────────────────────────────────────────────────────────────
+
+class ClusterabilityGauge:
+    """Renders Hopkins statistic as an angular gauge chart."""
+
+    def build(self, hopkins_value: Optional[float],
+              interpretation: str = "") -> Any:
+        import plotly.graph_objects as go
+        if hopkins_value is None:
+            return empty_figure("Hopkins statistic not available")
+
+        h = float(np.clip(hopkins_value, 0, 1))
+        if h >= 0.75:   color, grade = Theme.ACCENT_GREEN,  "HIGHLY CLUSTERABLE"
+        elif h >= 0.60: color, grade = "#88ff44",           "CLUSTERABLE"
+        elif h >= 0.50: color, grade = Theme.ACCENT_YELLOW, "WEAKLY CLUSTERABLE"
+        elif h >= 0.40: color, grade = Theme.ACCENT_ORANGE, "NEAR-RANDOM"
+        else:            color, grade = "#ff3333",           "NOT CLUSTERABLE"
+
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number+delta",
+            value=round(h * 100, 1),
+            delta={"reference": 50, "valueformat": ".1f",
+                   "increasing": {"color": Theme.ACCENT_GREEN},
+                   "decreasing": {"color": "#ff3333"}},
+            title={"text": f"Hopkins Statistic<br><span style='font-size:.75em;color:{color}'>{grade}</span>",
+                   "font": {"color": Theme.TEXT_PRIMARY, "size": 14}},
+            number={"suffix": "%", "font": {"color": color, "size": 32}},
+            gauge={
+                "axis": {"range": [0, 100], "tickcolor": Theme.TEXT_DIM,
+                         "tickfont": {"color": Theme.TEXT_DIM}},
+                "bar": {"color": color, "thickness": 0.25},
+                "bgcolor": Theme.BG_CARD,
+                "bordercolor": Theme.BORDER,
+                "steps": [
+                    {"range": [0, 40],  "color": "#1a0000"},
+                    {"range": [40, 50], "color": "#1a0800"},
+                    {"range": [50, 60], "color": "#1a1400"},
+                    {"range": [60, 75], "color": "#001a0a"},
+                    {"range": [75, 100],"color": "#001a10"},
+                ],
+                "threshold": {
+                    "line": {"color": Theme.ACCENT_CYAN, "width": 3},
+                    "thickness": 0.75, "value": 60,
+                },
+            },
+        ))
+        fig.update_layout(
+            paper_bgcolor=Theme.BG_DARK, font=dict(color=Theme.TEXT_PRIMARY),
+            height=320, margin=dict(l=30, r=30, t=60, b=20),
+        )
+        return fig
+
+
+# ──────────────────────────────────────────────────────────────────
+# CLUSTER CONFIDENCE HEATMAP
+# ──────────────────────────────────────────────────────────────────
+
+class ConfidenceHeatmapBuilder:
+    """
+    2D scatter where point colour encodes cluster assignment confidence.
+    Dim points = uncertain. Bright points = confident.
+    """
+    def build(self, X: np.ndarray, labels: np.ndarray,
+              confidence: np.ndarray, method: str = "PCA",
+              algorithm_name: str = "") -> Any:
+        import plotly.graph_objects as go
+        emb = EmbeddingEngine()
+        X_2d = emb.embed(X, method=method, n_components=2)
+        MAX_PTS = 10_000
+        if len(X) > MAX_PTS:
+            idx = np.random.default_rng(42).choice(len(X), MAX_PTS, replace=False)
+            X_2d, labels, confidence = X_2d[idx], labels[idx], confidence[idx]
+
+        fig = go.Figure(go.Scatter(
+            x=X_2d[:, 0], y=X_2d[:, 1],
+            mode="markers",
+            marker=dict(
+                color=confidence,
+                colorscale=[
+                    [0.0, "#1a003a"], [0.3, "#4a00aa"],
+                    [0.6, "#0088ff"], [0.85, "#00ccff"],
+                    [1.0, "#00ffcc"],
+                ],
+                cmin=0, cmax=1, size=4, opacity=0.8,
+                colorbar=dict(
+                    title=dict(text="Confidence", font=dict(color=Theme.TEXT_DIM)),
+                    tickfont=dict(color=Theme.TEXT_DIM),
+                    x=1.02,
+                ),
+                showscale=True,
+            ),
+            text=[f"Cluster {l}<br>Conf: {c:.2f}" for l, c in zip(labels, confidence)],
+            hovertemplate="%{text}<extra></extra>",
+        ))
+        layout = Theme.plotly_layout(
+            f"{algorithm_name} — Assignment Confidence Map ({method})", height=520)
+        layout["xaxis"]["title"] = f"{method} 1"
+        layout["yaxis"]["title"] = f"{method} 2"
+        fig.update_layout(**layout)
+        return fig
+
+
+# ──────────────────────────────────────────────────────────────────
+# SEPARABILITY MATRIX HEATMAP
+# ──────────────────────────────────────────────────────────────────
+
+class SeparabilityMatrixPlotter:
+    def build(self, sep_matrix_df: pd.DataFrame,
+              algorithm_name: str = "") -> Any:
+        import plotly.graph_objects as go
+        if sep_matrix_df is None or sep_matrix_df.empty:
+            return empty_figure("No separability data")
+        fig = go.Figure(go.Heatmap(
+            z=sep_matrix_df.values,
+            x=sep_matrix_df.columns.tolist(),
+            y=sep_matrix_df.index.tolist(),
+            colorscale=[
+                [0.0, "#2a0000"], [0.3, "#aa2200"],
+                [0.6, "#ffaa00"], [1.0, "#00ffcc"],
+            ],
+            text=sep_matrix_df.round(2).values,
+            texttemplate="%{text}",
+            textfont=dict(size=9),
+            colorbar=dict(
+                title=dict(text="Mahalanobis Dist.", font=dict(color=Theme.TEXT_DIM)),
+                tickfont=dict(color=Theme.TEXT_DIM),
+            ),
+        ))
+        layout = Theme.plotly_layout(
+            f"{algorithm_name} — Cluster Separability Matrix", height=480, showlegend=False)
+        fig.update_layout(**layout)
+        return fig
+
+
+# ──────────────────────────────────────────────────────────────────
+# EXTEND VisualisationEngine with new builders
+# ──────────────────────────────────────────────────────────────────
+
+# Monkey-patch new capabilities onto the engine class
+def _density_contour(self, X, labels, method="PCA", algorithm_name=""):
+    return DensityContourBuilder().build(X, labels, method, algorithm_name)
+
+def _cluster_network(self, X, labels, algorithm_name=""):
+    return ClusterNetworkBuilder().build(X, labels, algorithm_name)
+
+def _gap_statistic_plot(self, gap_result):
+    return GapStatisticPlotter().build(gap_result)
+
+def _clusterability_gauge(self, hopkins_value, interpretation=""):
+    return ClusterabilityGauge().build(hopkins_value, interpretation)
+
+def _confidence_heatmap(self, X, labels, confidence, method="PCA", algorithm_name=""):
+    return ConfidenceHeatmapBuilder().build(X, labels, confidence, method, algorithm_name)
+
+def _separability_matrix_plot(self, sep_df, algorithm_name=""):
+    return SeparabilityMatrixPlotter().build(sep_df, algorithm_name)
+
+VisualisationEngine.density_contour        = _density_contour
+VisualisationEngine.cluster_network        = _cluster_network
+VisualisationEngine.gap_statistic_plot     = _gap_statistic_plot
+VisualisationEngine.clusterability_gauge   = _clusterability_gauge
+VisualisationEngine.confidence_heatmap     = _confidence_heatmap
+VisualisationEngine.separability_matrix    = _separability_matrix_plot

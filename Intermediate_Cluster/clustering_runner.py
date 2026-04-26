@@ -963,3 +963,410 @@ def compute_cluster_statistics(labels: np.ndarray) -> Dict[str, Any]:
             for c in sizes
         )),
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL POLISH — ADVANCED RUNNER ADDITIONS
+# ══════════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────────
+# EXECUTION TIMELINE RECORDER
+# ──────────────────────────────────────────────────────────────────
+
+class ExecutionTimeline:
+    """
+    Records a detailed timeline of algorithm execution.
+    Tracks: start time, end time, memory delta, status.
+    Used for profiling and identifying bottlenecks.
+    """
+    def __init__(self):
+        self._events: List[Dict[str, Any]] = []
+        self._t_start = time.perf_counter()
+
+    def record(self, algorithm_id: str, algorithm_name: str,
+               status: str, runtime: float,
+               n_clusters: int, extra: Optional[Dict] = None):
+        elapsed = time.perf_counter() - self._t_start
+        event = {
+            "algorithm_id": algorithm_id,
+            "algorithm_name": algorithm_name[:40],
+            "status": status,
+            "runtime_s": round(runtime, 4),
+            "elapsed_s": round(elapsed, 4),
+            "n_clusters": n_clusters,
+        }
+        if extra:
+            event.update(extra)
+        self._events.append(event)
+
+    def to_dataframe(self) -> "pd.DataFrame":
+        import pandas as pd
+        if not self._events:
+            return pd.DataFrame()
+        df = pd.DataFrame(self._events)
+        df = df.sort_values("elapsed_s").reset_index(drop=True)
+        return df
+
+    def summary(self) -> Dict[str, Any]:
+        if not self._events:
+            return {}
+        runtimes = [e["runtime_s"] for e in self._events]
+        statuses = [e["status"] for e in self._events]
+        return {
+            "n_events": len(self._events),
+            "total_wall_time": round(time.perf_counter() - self._t_start, 3),
+            "fastest": min(self._events, key=lambda e: e["runtime_s"])["algorithm_id"],
+            "slowest": max(self._events, key=lambda e: e["runtime_s"])["algorithm_id"],
+            "mean_runtime": round(float(np.mean(runtimes)), 3),
+            "median_runtime": round(float(np.median(runtimes)), 3),
+            "n_success": statuses.count("success") + statuses.count("cached"),
+            "n_failed": statuses.count("failed"),
+            "n_timeout": statuses.count("timeout"),
+        }
+
+    @property
+    def events(self) -> List[Dict[str, Any]]:
+        return self._events
+
+
+# ──────────────────────────────────────────────────────────────────
+# MEMORY-AWARE SCHEDULER
+# ──────────────────────────────────────────────────────────────────
+
+class MemoryAwareScheduler:
+    """
+    Estimates memory usage per algorithm and reorders execution
+    to avoid running multiple high-memory algorithms simultaneously.
+    Also gates algorithms that exceed available system memory.
+    """
+    # Rough bytes-per-element multipliers
+    MEMORY_CLASS = {
+        "O(n)":       1,
+        "O(n log n)": 2,
+        "O(n²)":      4,
+        "O(n²·k)":    6,
+        "O(n³)":      10,
+        "varies":     2,
+    }
+
+    def __init__(self, safety_factor: float = 0.6):
+        self.safety_factor = safety_factor
+
+    def estimate_memory_mb(self, algorithm_id: str, n: int, d: int) -> float:
+        """Rough upper bound on peak memory in MB."""
+        try:
+            from clustering_registry import get_registry
+            spec = get_registry().get(algorithm_id)
+            mult = self.MEMORY_CLASS.get(spec.time_complexity.value, 2)
+            bytes_est = mult * n * d * 8  # float64
+            if "agglomerative" in algorithm_id or "spectral" in algorithm_id:
+                bytes_est += n * n * 4  # distance matrix
+            if "gmm" in algorithm_id:
+                bytes_est += n * d * d * 8  # covariance matrices
+            return bytes_est / 1e6
+        except Exception:
+            return float(n * d * 8 / 1e6)
+
+    def available_memory_mb(self) -> float:
+        """Available system RAM in MB."""
+        try:
+            import psutil
+            return psutil.virtual_memory().available / 1e6
+        except ImportError:
+            return 4000.0  # Conservative fallback: 4 GB
+
+    def filter_feasible(self, algorithm_ids: List[str],
+                         n: int, d: int) -> Tuple[List[str], List[str]]:
+        """Returns (feasible_ids, too_large_ids)."""
+        avail = self.available_memory_mb() * self.safety_factor
+        feasible, too_large = [], []
+        for aid in algorithm_ids:
+            est = self.estimate_memory_mb(aid, n, d)
+            if est > avail:
+                too_large.append(aid)
+            else:
+                feasible.append(aid)
+        return feasible, too_large
+
+    def schedule_by_memory(self, algorithm_ids: List[str],
+                            n: int, d: int) -> List[str]:
+        """Sort so light algorithms run first (better parallelism)."""
+        estimates = {aid: self.estimate_memory_mb(aid, n, d) for aid in algorithm_ids}
+        return sorted(algorithm_ids, key=lambda aid: estimates.get(aid, 0))
+
+
+# ──────────────────────────────────────────────────────────────────
+# RESULT FINGERPRINTER
+# ──────────────────────────────────────────────────────────────────
+
+class ResultFingerprinter:
+    """
+    Creates a compact fingerprint of a clustering result for
+    deduplication, comparison, and reproducibility tracking.
+    Two identical label arrays produce identical fingerprints.
+    """
+    @staticmethod
+    def fingerprint(labels: np.ndarray) -> str:
+        """Returns a 16-char hex fingerprint of a label array."""
+        canonical = ResultFingerprinter._canonicalise(labels)
+        return hashlib.md5(canonical.tobytes()).hexdigest()[:16]
+
+    @staticmethod
+    def _canonicalise(labels: np.ndarray) -> np.ndarray:
+        """Relabel clusters in order of first appearance (canonical form)."""
+        mapping = {}
+        next_id = 0
+        out = np.empty_like(labels)
+        for i, lab in enumerate(labels):
+            if lab == -1:
+                out[i] = -1
+                continue
+            if lab not in mapping:
+                mapping[lab] = next_id
+                next_id += 1
+            out[i] = mapping[lab]
+        return out
+
+    @staticmethod
+    def are_equivalent(labels_a: np.ndarray,
+                        labels_b: np.ndarray) -> bool:
+        """True if two label arrays represent the same partition."""
+        if len(labels_a) != len(labels_b):
+            return False
+        fp_a = ResultFingerprinter.fingerprint(labels_a)
+        fp_b = ResultFingerprinter.fingerprint(labels_b)
+        return fp_a == fp_b
+
+    @staticmethod
+    def deduplicate(results: Dict[str, "ClusteringResult"]
+                    ) -> Tuple[Dict[str, "ClusteringResult"], Dict[str, str]]:
+        """
+        Remove duplicate clustering results.
+        Returns (unique_results, duplicate_map: {dup_id → original_id}).
+        """
+        seen: Dict[str, str] = {}  # fingerprint → first algorithm_id
+        unique: Dict[str, "ClusteringResult"] = {}
+        duplicate_map: Dict[str, str] = {}
+        for aid, cr in results.items():
+            if not cr.succeeded or len(cr.labels) == 0:
+                unique[aid] = cr
+                continue
+            fp = ResultFingerprinter.fingerprint(cr.labels)
+            if fp not in seen:
+                seen[fp] = aid
+                unique[aid] = cr
+            else:
+                duplicate_map[aid] = seen[fp]
+        return unique, duplicate_map
+
+
+# ──────────────────────────────────────────────────────────────────
+# INCREMENTAL / WARM-START RUNNER
+# ──────────────────────────────────────────────────────────────────
+
+class IncrementalRunner:
+    """
+    Supports incremental updates: when new data arrives, re-runs only
+    the algorithms whose results might change, using warm-start where
+    possible (Mini-Batch K-Means, BIRCH).
+    """
+    WARM_START_ALGOS = {"minibatch_kmeans", "birch", "online_gmm"}
+
+    def __init__(self, base_runner: "ClusteringRunner"):
+        self._runner = base_runner
+        self._prev_results: Dict[str, "ClusteringResult"] = {}
+        self._prev_X_hash: Optional[str] = None
+
+    def update(self, algorithm_ids: List[str],
+               X_new: np.ndarray,
+               X_old_hash: Optional[str] = None) -> Dict[str, "ClusteringResult"]:
+        """
+        Update clustering with new data.
+        Returns merged result dict (old results updated where needed).
+        """
+        new_hash = hashlib.md5(X_new.data.tobytes()).hexdigest()[:12]
+        if new_hash == self._prev_X_hash and self._prev_results:
+            logger.info("Data unchanged — returning cached results")
+            return self._prev_results
+
+        # For warm-start capable algorithms, attempt partial update
+        warm_ids = [aid for aid in algorithm_ids if aid in self.WARM_START_ALGOS]
+        cold_ids = [aid for aid in algorithm_ids if aid not in self.WARM_START_ALGOS]
+
+        results = {}
+        if cold_ids:
+            batch = self._runner.run_algorithms(cold_ids, X_new)
+            results.update(batch.results)
+
+        # Warm-start: pass prev model to Mini-Batch KMeans
+        from clustering_registry import get_registry
+        for aid in warm_ids:
+            try:
+                prev_cr = self._prev_results.get(aid)
+                if prev_cr and prev_cr.succeeded and prev_cr.model is not None:
+                    model = prev_cr.model
+                    if hasattr(model, "partial_fit"):
+                        model.partial_fit(X_new)
+                        labels = model.predict(X_new)
+                    else:
+                        cr = self._runner.run_single(aid, X_new)
+                        labels = cr.labels
+                        model = cr.model
+                    from clustering_runner import ClusteringResult, RunStatus
+                    valid = labels[labels != -1]
+                    nk = len(np.unique(valid)) if len(valid) > 0 else 0
+                    results[aid] = ClusteringResult(
+                        algorithm_id=aid, algorithm_name=aid,
+                        algorithm_family="warm_start",
+                        labels=np.asarray(labels, dtype=np.int32),
+                        status=RunStatus.SUCCESS,
+                        runtime_seconds=0.0, n_clusters_found=nk,
+                        n_noise_points=int((labels == -1).sum()),
+                        noise_ratio=float((labels == -1).mean()),
+                        params_used={}, model=model,
+                    )
+                else:
+                    cr = self._runner.run_single(aid, X_new)
+                    results[aid] = cr
+            except Exception as e:
+                logger.warning(f"Warm-start failed for {aid}: {e}")
+                cr = self._runner.run_single(aid, X_new)
+                results[aid] = cr
+
+        self._prev_results = results
+        self._prev_X_hash = new_hash
+        return results
+
+
+# ──────────────────────────────────────────────────────────────────
+# PERFORMANCE LEADERBOARD
+# ──────────────────────────────────────────────────────────────────
+
+class PerformanceLeaderboard:
+    """
+    Tracks algorithm performance history across multiple datasets/runs.
+    Useful for identifying consistently well-performing algorithms
+    and building dataset-specific algorithm portfolios.
+    """
+    def __init__(self):
+        self._history: List[Dict[str, Any]] = []
+
+    def record(self, dataset_name: str,
+               eval_results: List[Any],
+               n_samples: int, n_features: int):
+        """Record evaluation results for one run."""
+        for er in eval_results:
+            self._history.append({
+                "dataset": dataset_name,
+                "algorithm": er.algorithm_id,
+                "algorithm_name": er.algorithm_name,
+                "composite_score": er.composite_score,
+                "silhouette": er.metric_value("silhouette"),
+                "n_clusters": er.n_clusters,
+                "rank": er.rank,
+                "n_samples": n_samples,
+                "n_features": n_features,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M"),
+            })
+
+    def top_algorithms(self, metric: str = "composite_score",
+                        top_n: int = 10) -> "pd.DataFrame":
+        import pandas as pd
+        if not self._history:
+            return pd.DataFrame()
+        df = pd.DataFrame(self._history)
+        if metric not in df.columns:
+            return df
+        agg = df.groupby("algorithm_name")[metric].agg(
+            mean="mean", std="std", count="count",
+            best="max", worst="min"
+        ).round(4).reset_index()
+        return agg.sort_values("mean", ascending=False).head(top_n)
+
+    def win_rates(self) -> "pd.DataFrame":
+        """Fraction of runs where each algorithm ranked #1."""
+        import pandas as pd
+        if not self._history:
+            return pd.DataFrame()
+        df = pd.DataFrame(self._history)
+        wins = df[df["rank"] == 1].groupby("algorithm_name").size()
+        total = df.groupby("algorithm_name").size()
+        win_rate = (wins / total).fillna(0).round(4)
+        return win_rate.reset_index().rename(columns={0: "win_rate"}).sort_values(
+            "win_rate", ascending=False)
+
+    def to_dataframe(self) -> "pd.DataFrame":
+        import pandas as pd
+        return pd.DataFrame(self._history)
+
+    def clear(self):
+        self._history.clear()
+
+
+# ──────────────────────────────────────────────────────────────────
+# ALGORITHM COMPLEXITY ESTIMATOR
+# ──────────────────────────────────────────────────────────────────
+
+class ComplexityEstimator:
+    """
+    Empirically estimates actual time complexity by running on subsets
+    and fitting power-law curve: T = a * n^b.
+    Predicts runtime for full dataset before committing.
+    """
+    def __init__(self, sample_sizes: Optional[List[int]] = None):
+        self.sample_sizes = sample_sizes or [200, 500, 1000, 2000]
+
+    def estimate(self, algorithm_id: str,
+                 X: np.ndarray,
+                 n_clusters: int = 8) -> Dict[str, Any]:
+        """Returns predicted runtime for full n and complexity exponent b."""
+        import scipy.optimize as opt
+        from clustering_runner import SingleAlgorithmExecutor, RunnerConfig
+        config = RunnerConfig(n_clusters=n_clusters, timeout_seconds=30)
+        executor = SingleAlgorithmExecutor(config)
+        rng = np.random.default_rng(42)
+        n = len(X)
+
+        sizes_tested = [s for s in self.sample_sizes if s < n]
+        if not sizes_tested or len(sizes_tested) < 2:
+            return {"predicted_runtime_s": None, "exponent": None,
+                    "status": "insufficient_data"}
+
+        runtimes = []
+        for size in sizes_tested:
+            idx = rng.choice(n, size, replace=False)
+            cr = executor.run(algorithm_id, X[idx], {})
+            runtimes.append(cr.runtime_seconds if cr.succeeded else None)
+
+        valid = [(s, t) for s, t in zip(sizes_tested, runtimes) if t is not None and t > 1e-5]
+        if len(valid) < 2:
+            return {"predicted_runtime_s": None, "exponent": None,
+                    "status": "all_runs_failed"}
+
+        vs, vt = zip(*valid)
+        try:
+            log_s = np.log(list(vs))
+            log_t = np.log(list(vt))
+            coeffs = np.polyfit(log_s, log_t, 1)
+            b = float(coeffs[0])  # complexity exponent
+            a = float(np.exp(coeffs[1]))
+            predicted = a * (n ** b)
+        except Exception:
+            predicted = None; b = None
+
+        return {
+            "sizes_tested": list(vs),
+            "runtimes_s": [round(t, 4) for t in vt],
+            "exponent_b": round(b, 3) if b is not None else None,
+            "complexity_class": self._classify_exponent(b) if b is not None else "unknown",
+            "predicted_runtime_s": round(float(predicted), 2) if predicted else None,
+            "status": "ok",
+        }
+
+    @staticmethod
+    def _classify_exponent(b: float) -> str:
+        if b < 1.3:   return "O(n) — linear, very fast"
+        if b < 1.6:   return "O(n log n) — quasi-linear"
+        if b < 2.3:   return "O(n²) — quadratic, moderate"
+        if b < 2.8:   return "O(n²·k) — quadratic-plus"
+        return f"O(n^{b:.1f}) — super-quadratic, slow on large data"

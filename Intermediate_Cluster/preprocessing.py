@@ -1046,3 +1046,460 @@ def summarize_preprocessing_result(result: PreprocessingResult) -> Dict[str, Any
         "feature_selection": str(result.config.feature_selection.value),
         "warnings": result.warnings,
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL POLISH — ADVANCED PREPROCESSING ADDITIONS
+# ══════════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────────
+# FEATURE INTERACTION GENERATOR
+# ──────────────────────────────────────────────────────────────────
+
+class FeatureInteractionGenerator:
+    """
+    Generates polynomial / interaction features for clustering.
+    Pairs of features multiplied or differenced can reveal
+    structure invisible in original space.
+    """
+    def __init__(self, degree: int = 2, interaction_only: bool = True,
+                 max_new_features: int = 50):
+        self.degree = degree
+        self.interaction_only = interaction_only
+        self.max_new_features = max_new_features
+
+    def fit_transform(self, X: np.ndarray,
+                      feature_names: List[str]) -> Tuple[np.ndarray, List[str]]:
+        try:
+            from sklearn.preprocessing import PolynomialFeatures
+            n_orig = X.shape[1]
+            max_feats = min(n_orig, 10)  # Cap to avoid explosion
+            X_sub = X[:, :max_feats]
+            names_sub = feature_names[:max_feats]
+            poly = PolynomialFeatures(
+                degree=self.degree,
+                interaction_only=self.interaction_only,
+                include_bias=False,
+            )
+            X_new = poly.fit_transform(X_sub)
+            new_names = [
+                n.replace(" ", "*") for n in
+                poly.get_feature_names_out(names_sub)
+            ]
+            # Keep only new columns, cap
+            X_interactions = X_new[:, n_orig:][:, :self.max_new_features]
+            new_feature_names = new_names[n_orig:][:self.max_new_features]
+            X_combined = np.hstack([X, X_interactions])
+            all_names = feature_names + new_feature_names
+            return X_combined, all_names
+        except Exception as e:
+            logger.warning(f"Interaction generation failed: {e}")
+            return X, feature_names
+
+
+# ──────────────────────────────────────────────────────────────────
+# WHITENING TRANSFORM
+# ──────────────────────────────────────────────────────────────────
+
+class WhiteningTransform:
+    """
+    ZCA / PCA whitening: decorrelates features and normalises variance.
+    Critical for distance-sensitive algorithms (K-Means, GMM, Spectral).
+    ZCA whitening preserves the original feature space structure better than PCA.
+    """
+    def __init__(self, method: str = "zca", epsilon: float = 1e-5,
+                 random_state: int = 42):
+        assert method in ("zca", "pca"), "method must be 'zca' or 'pca'"
+        self.method = method
+        self.epsilon = epsilon
+        self.random_state = random_state
+        self._W = None
+        self._mean = None
+
+    def fit_transform(self, X: np.ndarray) -> Tuple[np.ndarray, "WhiteningTransform"]:
+        self._mean = X.mean(axis=0)
+        Xc = X - self._mean
+        cov = np.cov(Xc.T) + np.eye(X.shape[1]) * self.epsilon
+        try:
+            eigvals, eigvecs = np.linalg.eigh(cov)
+            eigvals = np.maximum(eigvals, self.epsilon)
+            D_inv_sqrt = np.diag(1.0 / np.sqrt(eigvals))
+            if self.method == "zca":
+                self._W = eigvecs @ D_inv_sqrt @ eigvecs.T
+            else:  # pca
+                self._W = D_inv_sqrt @ eigvecs.T
+            X_white = (Xc @ self._W.T)
+        except np.linalg.LinAlgError:
+            logger.warning("Whitening eigdecomp failed; returning StandardScaler result")
+            from sklearn.preprocessing import StandardScaler
+            ss = StandardScaler()
+            X_white = ss.fit_transform(X)
+        return X_white, self
+
+    def transform(self, X: np.ndarray) -> np.ndarray:
+        if self._W is None or self._mean is None:
+            raise RuntimeError("WhiteningTransform not fitted")
+        return (X - self._mean) @ self._W.T
+
+
+# ──────────────────────────────────────────────────────────────────
+# DIMENSIONALITY REDUCTION BENCHMARKER
+# ──────────────────────────────────────────────────────────────────
+
+class DimReducBenchmarker:
+    """
+    Compares multiple dimensionality reduction methods on the same data.
+    Metric: trustworthiness (neighbourhood preservation) and
+    reconstruction error (where applicable).
+    Helps users choose the best embedding for their data.
+    """
+    METHODS = ["PCA", "ICA", "TruncatedSVD", "UMAP", "t-SNE"]
+
+    def __init__(self, n_components: int = 10, random_state: int = 42,
+                 max_samples: int = 5000):
+        self.n_components = n_components
+        self.random_state = random_state
+        self.max_samples = max_samples
+
+    def benchmark(self, X: np.ndarray,
+                  methods: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        from sklearn.manifold import trustworthiness
+        methods = methods or ["PCA", "ICA", "TruncatedSVD"]
+        if len(X) > self.max_samples:
+            idx = np.random.default_rng(self.random_state).choice(
+                len(X), self.max_samples, replace=False)
+            X_bench = X[idx]
+        else:
+            X_bench = X
+
+        results = []
+        nc = min(self.n_components, X_bench.shape[1] - 1, X_bench.shape[0] - 1)
+        nc = max(nc, 2)
+
+        for method in methods:
+            t0 = time.perf_counter()
+            try:
+                if method == "PCA":
+                    from sklearn.decomposition import PCA
+                    m = PCA(n_components=nc, random_state=self.random_state)
+                    Z = m.fit_transform(X_bench)
+                    rec_err = float(np.mean((X_bench - m.inverse_transform(Z)) ** 2))
+                    var_exp = float(m.explained_variance_ratio_.sum())
+                elif method == "ICA":
+                    from sklearn.decomposition import FastICA
+                    m = FastICA(n_components=nc, random_state=self.random_state,
+                                max_iter=300)
+                    Z = m.fit_transform(X_bench)
+                    rec_err = float(np.mean((X_bench - m.inverse_transform(Z)) ** 2))
+                    var_exp = None
+                elif method == "TruncatedSVD":
+                    from sklearn.decomposition import TruncatedSVD
+                    m = TruncatedSVD(n_components=nc, random_state=self.random_state)
+                    Z = m.fit_transform(X_bench)
+                    rec_err = float(np.mean((X_bench - m.inverse_transform(Z)) ** 2))
+                    var_exp = float(m.explained_variance_ratio_.sum())
+                elif method == "UMAP":
+                    import umap
+                    m = umap.UMAP(n_components=min(nc, 10),
+                                  random_state=self.random_state)
+                    Z = m.fit_transform(X_bench)
+                    rec_err = None; var_exp = None
+                elif method == "t-SNE":
+                    from sklearn.manifold import TSNE
+                    m = TSNE(n_components=min(nc, 3),
+                             random_state=self.random_state,
+                             n_iter=500, perplexity=min(30, len(X_bench)//4))
+                    Z = m.fit_transform(X_bench)
+                    rec_err = None; var_exp = None
+                else:
+                    continue
+
+                # Trustworthiness (n_neighbors=12)
+                try:
+                    trust = float(trustworthiness(X_bench, Z, n_neighbors=12))
+                except Exception:
+                    trust = None
+
+                runtime = time.perf_counter() - t0
+                results.append({
+                    "method": method,
+                    "n_components": Z.shape[1],
+                    "trustworthiness": round(trust, 4) if trust else None,
+                    "reconstruction_error": round(rec_err, 4) if rec_err is not None else None,
+                    "variance_explained": round(var_exp, 4) if var_exp is not None else None,
+                    "runtime_seconds": round(runtime, 3),
+                    "status": "ok",
+                })
+            except Exception as e:
+                results.append({
+                    "method": method, "status": "failed", "error": str(e),
+                    "runtime_seconds": round(time.perf_counter() - t0, 3),
+                })
+
+        return sorted(results,
+                      key=lambda r: r.get("trustworthiness") or 0,
+                      reverse=True)
+
+
+# ──────────────────────────────────────────────────────────────────
+# SMART DATA TYPE DETECTOR
+# ──────────────────────────────────────────────────────────────────
+
+class SmartDataTypeDetector:
+    """
+    Detects special data characteristics that affect algorithm choice:
+    - Time-series columns (monotonic, periodic patterns)
+    - Text-derived columns (high cardinality, string lengths)
+    - ID-like columns (near-unique, sequential integers)
+    - Constant / near-constant columns
+    - Highly skewed columns needing log transform
+    - Bimodal columns (suitable for GMM)
+    """
+    def detect(self, df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
+        results = {}
+        for col in df.columns:
+            series = df[col]
+            info: Dict[str, Any] = {"col": col, "flags": []}
+            n_unique = series.nunique()
+            n = len(series)
+
+            # ID-like
+            if series.dtype in [np.int64, np.int32, np.float64]:
+                if n_unique / max(n, 1) > 0.95:
+                    info["flags"].append("id_like")
+
+            # Constant
+            if n_unique <= 1:
+                info["flags"].append("constant")
+
+            # Numeric analysis
+            if pd.api.types.is_numeric_dtype(series):
+                clean = series.dropna()
+                if len(clean) > 10:
+                    skew = float(clean.skew())
+                    if abs(skew) > 2.5:
+                        info["flags"].append("highly_skewed")
+                        info["skewness"] = round(skew, 3)
+                        if clean.min() > 0:
+                            info["flags"].append("log_transform_candidate")
+
+                    # Bimodality test (Hartigan's dip approximation via kurtosis)
+                    kurt = float(clean.kurtosis())
+                    if kurt < -0.5:
+                        info["flags"].append("possibly_bimodal")
+
+                    # Monotonic (time-series proxy)
+                    diffs = np.diff(clean.values)
+                    if (diffs > 0).mean() > 0.98 or (diffs < 0).mean() > 0.98:
+                        info["flags"].append("monotonic_time_series")
+
+                    # Periodic (autocorrelation test)
+                    if len(clean) >= 20:
+                        try:
+                            ac = float(pd.Series(clean.values).autocorr(lag=1))
+                            if abs(ac) > 0.85:
+                                info["flags"].append("high_autocorrelation")
+                                info["autocorr_lag1"] = round(ac, 3)
+                        except Exception:
+                            pass
+
+            results[col] = info
+
+        # Summary
+        all_flags = [f for info in results.values() for f in info.get("flags", [])]
+        from collections import Counter
+        return {
+            "columns": results,
+            "flag_summary": dict(Counter(all_flags)),
+            "n_id_like": sum(1 for i in results.values() if "id_like" in i.get("flags", [])),
+            "n_skewed": sum(1 for i in results.values() if "highly_skewed" in i.get("flags", [])),
+            "n_bimodal": sum(1 for i in results.values() if "possibly_bimodal" in i.get("flags", [])),
+            "n_timeseries": sum(1 for i in results.values() if "monotonic_time_series" in i.get("flags", [])),
+            "recommendations": _preprocessing_recommendations(results),
+        }
+
+
+def _preprocessing_recommendations(col_results: Dict) -> List[str]:
+    recs = []
+    n_skewed = sum(1 for i in col_results.values() if "highly_skewed" in i.get("flags",[]))
+    n_log    = sum(1 for i in col_results.values() if "log_transform_candidate" in i.get("flags",[]))
+    n_mono   = sum(1 for i in col_results.values() if "monotonic_time_series" in i.get("flags",[]))
+    n_bim    = sum(1 for i in col_results.values() if "possibly_bimodal" in i.get("flags",[]))
+    n_id     = sum(1 for i in col_results.values() if "id_like" in i.get("flags",[]))
+    if n_skewed > 0:
+        recs.append(f"⚠️ {n_skewed} highly skewed feature(s) — use Robust or Quantile scaler.")
+    if n_log > 0:
+        recs.append(f"✅ {n_log} positive skewed feature(s) are log-transform candidates — try PowerTransformer (Yeo-Johnson).")
+    if n_mono > 0:
+        recs.append(f"⏱️ {n_mono} monotonic column(s) detected — likely time/ID columns; consider dropping or differencing.")
+    if n_bim > 0:
+        recs.append(f"🔀 {n_bim} possibly bimodal feature(s) — GMM or DPGMM may work better than K-Means here.")
+    if n_id > 0:
+        recs.append(f"🆔 {n_id} near-unique (ID-like) column(s) detected — strongly recommend dropping these.")
+    if not recs:
+        recs.append("✅ No major data quality flags. Standard preprocessing should work well.")
+    return recs
+
+
+# ──────────────────────────────────────────────────────────────────
+# MULTI-COLLINEARITY REMOVER (VIF-based)
+# ──────────────────────────────────────────────────────────────────
+
+class VIFCollinearityRemover:
+    """
+    Variance Inflation Factor (VIF) based collinearity removal.
+    More principled than simple correlation filtering because it
+    accounts for multicollinearity (not just pairwise correlation).
+    Iteratively removes the feature with highest VIF until all VIF < threshold.
+    """
+    def __init__(self, vif_threshold: float = 10.0, max_features: int = 200):
+        self.vif_threshold = vif_threshold
+        self.max_features = max_features
+        self._dropped: List[str] = []
+
+    def fit_transform(self, X: np.ndarray,
+                      feature_names: List[str]) -> Tuple[np.ndarray, List[str]]:
+        if X.shape[1] > self.max_features:
+            return X, feature_names
+
+        remaining = list(range(X.shape[1]))
+        names = list(feature_names)
+        self._dropped = []
+        max_iter = X.shape[1]
+
+        for _ in range(max_iter):
+            if len(remaining) <= 2:
+                break
+            Xs = X[:, remaining]
+            vifs = self._compute_vifs(Xs)
+            max_vif = float(vifs.max())
+            if max_vif < self.vif_threshold:
+                break
+            worst = int(vifs.argmax())
+            dropped_name = names[worst]
+            self._dropped.append(dropped_name)
+            remaining.pop(worst)
+            names.pop(worst)
+
+        return X[:, remaining], names
+
+    @staticmethod
+    def _compute_vifs(X: np.ndarray) -> np.ndarray:
+        try:
+            from sklearn.linear_model import LinearRegression
+            n, p = X.shape
+            vifs = np.zeros(p)
+            for j in range(p):
+                y = X[:, j]
+                Xj = np.delete(X, j, axis=1)
+                lr = LinearRegression(fit_intercept=True)
+                lr.fit(Xj, y)
+                ss_res = float(np.sum((y - lr.predict(Xj)) ** 2))
+                ss_tot = float(np.sum((y - y.mean()) ** 2))
+                r2 = max(0.0, 1 - ss_res / (ss_tot + 1e-10))
+                vifs[j] = 1.0 / (1 - r2 + 1e-10)
+            return vifs
+        except Exception:
+            return np.ones(X.shape[1])
+
+    @property
+    def dropped_features(self) -> List[str]:
+        return self._dropped
+
+
+# ──────────────────────────────────────────────────────────────────
+# ADAPTIVE SAMPLE WEIGHTER
+# ──────────────────────────────────────────────────────────────────
+
+class AdaptiveSampleWeighter:
+    """
+    Assigns sample weights to counteract density imbalance.
+    Dense regions get lower weights; sparse regions get higher weights.
+    Helps density-sensitive algorithms (GMM, K-Means) avoid being
+    dominated by a high-density region.
+    """
+    def __init__(self, method: str = "inverse_density", n_neighbors: int = 10):
+        assert method in ("inverse_density", "uniform", "log_inverse")
+        self.method = method
+        self.n_neighbors = n_neighbors
+
+    def compute_weights(self, X: np.ndarray) -> np.ndarray:
+        if self.method == "uniform":
+            return np.ones(len(X))
+        try:
+            from sklearn.neighbors import NearestNeighbors
+            k = min(self.n_neighbors, len(X) - 1)
+            nbrs = NearestNeighbors(n_neighbors=k + 1).fit(X)
+            dists, _ = nbrs.kneighbors(X)
+            # kth-NN distance as density proxy
+            knn_dist = dists[:, -1]
+            knn_dist = np.where(knn_dist < 1e-10, 1e-10, knn_dist)
+            if self.method == "inverse_density":
+                weights = knn_dist / knn_dist.mean()
+            else:  # log_inverse
+                weights = np.log1p(knn_dist) / np.log1p(knn_dist.mean())
+            weights = weights / weights.sum() * len(X)
+            return weights.astype(np.float32)
+        except Exception:
+            return np.ones(len(X), dtype=np.float32)
+
+
+# ──────────────────────────────────────────────────────────────────
+# PREPROCESSING COMPARISON UTILITY
+# ──────────────────────────────────────────────────────────────────
+
+def compare_scalers(X: np.ndarray,
+                    feature_idx: int = 0) -> Dict[str, np.ndarray]:
+    """
+    Returns the distribution of a single feature under each scaler.
+    Useful for choosing the right scaler for skewed data.
+    """
+    results = {}
+    scalers_to_try = {
+        "Raw": None,
+        "Standard": ScalerType.STANDARD,
+        "MinMax": ScalerType.MINMAX,
+        "Robust": ScalerType.ROBUST,
+        "QuantileNorm": ScalerType.QUANTILE_NORM,
+        "PowerYeo": ScalerType.POWER_YEO,
+    }
+    col = X[:, feature_idx:feature_idx+1]
+    for name, st in scalers_to_try.items():
+        if st is None:
+            results[name] = col.ravel()
+        else:
+            try:
+                fs = FeatureScaler(st)
+                scaled, _ = fs.fit_transform(col)
+                results[name] = scaled.ravel()
+            except Exception:
+                pass
+    return results
+
+
+def auto_detect_and_recommend(df: pd.DataFrame,
+                               profile: Optional["DataProfile"] = None
+                               ) -> Dict[str, Any]:
+    """
+    One-shot function: detect data types, run profiler, return full
+    recommendations dict for the UI.
+    """
+    detector = SmartDataTypeDetector()
+    detection = detector.detect(df)
+
+    recommendations = {
+        "detection": detection,
+        "flag_summary": detection.get("flag_summary", {}),
+        "preprocessing_recommendations": detection.get("recommendations", []),
+    }
+
+    if profile is not None:
+        cfg = infer_best_config(profile)
+        recommendations["suggested_config"] = {
+            "scaler": cfg.scaler_type.value,
+            "imputer": cfg.impute_strategy.value,
+            "outlier_method": cfg.outlier_method.value,
+            "feature_selection": cfg.feature_selection.value,
+        }
+
+    return recommendations

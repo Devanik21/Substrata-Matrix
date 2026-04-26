@@ -2622,3 +2622,948 @@ st.markdown("""
         Built with ❤️ by ClusterX Intelligence Lab · Powered by Anthropic Claude &amp; Google Gemini
     </div>
 </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL POLISH — ADVANCED FEATURE PANELS
+# Injected at module level; called from Advanced Tools page
+# ══════════════════════════════════════════════════════════════════
+
+def _render_clusterability_panel():
+    """Full clusterability analysis panel — Hopkins, Gap, DBCV, Confidence."""
+    if not _has_data():
+        _info("Preprocess data first.")
+        return
+
+    X = st.session_state.X_processed
+    vis_engine = _get_vis()
+
+    _section("🧭 Clusterability Analysis")
+    _info(
+        "Run these tests **before** choosing algorithms. They tell you whether "
+        "clustering is meaningful on your data and what the optimal k is."
+    )
+
+    col_h, col_g = st.columns(2)
+
+    # ── Hopkins Statistic ─────────────────────────────────────────
+    with col_h:
+        st.markdown("#### 🔬 Hopkins Statistic")
+        st.caption("Measures spatial randomness. H > 0.6 → data is clusterable.")
+        n_hop = st.slider("Sample size for Hopkins", 50, 300, 150, key="hop_n")
+        if st.button("▶ Compute Hopkins", use_container_width=True, key="run_hop"):
+            with st.spinner("Computing Hopkins statistic..."):
+                try:
+                    from evaluation import HopkinsStatistic
+                    result = HopkinsStatistic(n_samples=n_hop).compute(X)
+                    st.session_state["_hop_result"] = result
+                except Exception as e:
+                    st.error(str(e))
+
+        if "_hop_result" in st.session_state and st.session_state["_hop_result"]:
+            res = st.session_state["_hop_result"]
+            H   = res.get("hopkins")
+            if H is not None and vis_engine and hasattr(vis_engine, "clusterability_gauge"):
+                fig_gauge = vis_engine.clusterability_gauge(H, res.get("interpretation",""))
+                st.plotly_chart(fig_gauge, use_container_width=True,
+                                config={"displayModeBar": False})
+            st.markdown(f"""
+            <div class="{'success-panel' if res.get('is_clusterable') else 'warn-panel'}">
+                <b>H = {H:.4f if H else 'N/A'}</b><br>
+                {res.get('interpretation','')}<br>
+                <span style="font-size:.8rem; color:#aaaacc;">{res.get('recommendation','')}</span>
+            </div>""", unsafe_allow_html=True)
+
+    # ── Gap Statistic ─────────────────────────────────────────────
+    with col_g:
+        st.markdown("#### 📈 Gap Statistic")
+        st.caption("Tibshirani et al. (2001) — gold standard for optimal k.")
+        col_g1, col_g2, col_g3 = st.columns(3)
+        with col_g1: k_min_gap = st.number_input("k min", 1, 10, 1, key="gap_kmin")
+        with col_g2: k_max_gap = st.number_input("k max", 2, 20, 10, key="gap_kmax")
+        with col_g3: n_refs    = st.number_input("Refs", 3, 20, 8, key="gap_refs")
+
+        if st.button("▶ Compute Gap Stat", use_container_width=True, key="run_gap"):
+            with st.spinner("Running Gap Statistic (this may take 30–60s)..."):
+                try:
+                    from evaluation import run_gap_statistic
+                    gap_res = run_gap_statistic(
+                        X, k_range=range(int(k_min_gap), int(k_max_gap)+1),
+                        n_refs=int(n_refs))
+                    st.session_state["_gap_result"] = gap_res
+                    _success(f"Optimal k = **{gap_res['optimal_k']}**")
+                except Exception as e:
+                    st.error(str(e))
+
+        if "_gap_result" in st.session_state and vis_engine:
+            if hasattr(vis_engine, "gap_statistic_plot"):
+                fig_gap = vis_engine.gap_statistic_plot(st.session_state["_gap_result"])
+                st.plotly_chart(fig_gap, use_container_width=True,
+                                config={"displayModeBar": True})
+
+    _sep()
+
+    # ── DBCV ─────────────────────────────────────────────────────
+    if _has_results():
+        st.markdown("#### 🌊 Density-Based Cluster Validity (DBCV)")
+        st.caption("Moulavi et al. (2014) — proper validity for DBSCAN/HDBSCAN/density clusters.")
+
+        eval_results = st.session_state.eval_results
+        batch = st.session_state.batch_result
+        dbcv_alg = st.selectbox(
+            "Algorithm for DBCV",
+            [er.algorithm_id for er in eval_results if batch.results.get(er.algorithm_id, None) and
+             batch.results[er.algorithm_id].succeeded],
+            format_func=lambda x: next((er.algorithm_name for er in eval_results if er.algorithm_id==x), x),
+            key="dbcv_alg",
+        )
+        if st.button("▶ Compute DBCV", use_container_width=True, key="run_dbcv"):
+            with st.spinner("Computing DBCV..."):
+                try:
+                    from evaluation import compute_dbcv
+                    labs = batch.results[dbcv_alg].labels
+                    dbcv_res = compute_dbcv(X, labs)
+                    st.session_state["_dbcv_result"] = (dbcv_alg, dbcv_res)
+                except Exception as e:
+                    st.error(str(e))
+
+        if "_dbcv_result" in st.session_state:
+            _aid, dbcv_res = st.session_state["_dbcv_result"]
+            if dbcv_res.get("dbcv") is not None:
+                c1, c2 = st.columns(2)
+                with c1: _metric_card(f"{dbcv_res['dbcv']:.4f}", "DBCV Score", color="#9b59ff")
+                with c2: st.markdown(f"""
+                    <div class="info-panel" style="margin-top:.8rem;">
+                        {dbcv_res.get('interpretation','')}
+                    </div>""", unsafe_allow_html=True)
+                if dbcv_res.get("per_cluster"):
+                    pc_df = pd.DataFrame([
+                        {"Cluster": f"C{k}", "DBCV": v}
+                        for k, v in dbcv_res["per_cluster"].items()
+                    ])
+                    st.dataframe(pc_df, use_container_width=True, hide_index=True)
+            else:
+                _warn(f"DBCV error: {dbcv_res.get('error','unknown')}")
+
+    _sep()
+
+    # ── Confidence Map ────────────────────────────────────────────
+    if _has_results():
+        st.markdown("#### 🎯 Assignment Confidence Map")
+        st.caption(
+            "Per-point confidence: how strongly does each point belong to its cluster? "
+            "Based on silhouette + k-NN label consistency."
+        )
+        eval_results = st.session_state.eval_results
+        batch = st.session_state.batch_result
+        conf_alg = st.selectbox(
+            "Algorithm",
+            [er.algorithm_id for er in eval_results],
+            format_func=lambda x: next((er.algorithm_name for er in eval_results if er.algorithm_id==x), x),
+            key="conf_alg",
+        )
+        conf_method = st.selectbox("Embedding", _b("available_embedding_methods")(), key="conf_method")
+
+        if st.button("▶ Compute Confidence Map", use_container_width=True, key="run_conf"):
+            with st.spinner("Scoring point confidence..."):
+                try:
+                    from stability import ClusterConfidenceScorer
+                    labs = batch.results[conf_alg].labels
+                    scorer = ClusterConfidenceScorer(n_neighbors=15)
+                    conf_scores = scorer.score(X, labs)
+                    st.session_state["_conf_scores"] = (conf_alg, labs, conf_scores)
+
+                    n_unc = int((conf_scores < 0.4).sum())
+                    n_tot = len(conf_scores)
+                    _success(f"Confidence computed. {n_unc}/{n_tot} ({n_unc/n_tot*100:.1f}%) "
+                              f"points are uncertain (confidence < 0.4).")
+                except Exception as e:
+                    st.error(str(e))
+
+        if "_conf_scores" in st.session_state:
+            _caid, _clabs, _cscores = st.session_state["_conf_scores"]
+            if vis_engine and hasattr(vis_engine, "confidence_heatmap"):
+                with st.spinner(f"Projecting via {conf_method}..."):
+                    fig_conf = vis_engine.confidence_heatmap(
+                        X, _clabs, _cscores, method=conf_method,
+                        algorithm_name=_caid)
+                _safe_plotly(fig_conf)
+
+            c1,c2,c3 = st.columns(3)
+            valid = _cscores[_clabs != -1]
+            with c1: _metric_card(f"{float(valid.mean()):.3f}", "Mean Confidence", color="#00e5ff")
+            with c2: _metric_card(f"{int((_cscores<0.4).sum())}", "Uncertain Points", color="#ff8c00")
+            with c3: _metric_card(f"{float((_cscores>=0.7).mean()*100):.1f}%", "High-Confidence %", color="#00ff88")
+
+
+def _render_density_network_panel():
+    """Density contour + cluster network graph."""
+    if not _has_results():
+        _info("Run clustering first.")
+        return
+    X = st.session_state.X_processed
+    batch = st.session_state.batch_result
+    eval_results = st.session_state.eval_results
+    vis_engine = _get_vis()
+    if not vis_engine:
+        return
+
+    _section("🔭 Advanced Geometry Views")
+
+    alg_choices = [er.algorithm_id for er in eval_results
+                   if batch.results.get(er.algorithm_id) and batch.results[er.algorithm_id].succeeded]
+    if not alg_choices:
+        _info("No successful results to visualise.")
+        return
+
+    sel_alg = st.selectbox("Algorithm", alg_choices,
+                            format_func=lambda x: next((er.algorithm_name for er in eval_results if er.algorithm_id==x), x),
+                            key="geom_alg")
+    labels = batch.results[sel_alg].labels
+
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        _subsection("Density Contour Overlay")
+        dc_method = st.selectbox("Embedding", _b("available_embedding_methods")(), key="dc_method")
+        if st.button("▶ Draw Density Contour", use_container_width=True, key="run_dc"):
+            with st.spinner("Computing KDE contours..."):
+                if hasattr(vis_engine, "density_contour"):
+                    fig_dc = vis_engine.density_contour(X, labels, method=dc_method,
+                                                         algorithm_name=sel_alg)
+                    st.session_state["_dc_fig"] = fig_dc
+        if "_dc_fig" in st.session_state:
+            _safe_plotly(st.session_state["_dc_fig"])
+
+    with col_b:
+        _subsection("Cluster Network Graph")
+        if st.button("▶ Build Network", use_container_width=True, key="run_net"):
+            with st.spinner("Building cluster network..."):
+                if hasattr(vis_engine, "cluster_network"):
+                    fig_net = vis_engine.cluster_network(X, labels, algorithm_name=sel_alg)
+                    st.session_state["_net_fig"] = fig_net
+        if "_net_fig" in st.session_state:
+            _safe_plotly(st.session_state["_net_fig"])
+
+    _sep()
+    _subsection("Cluster Separability Matrix")
+    if st.button("▶ Compute Separability Matrix", use_container_width=True, key="run_sep"):
+        with st.spinner("Computing Mahalanobis separability..."):
+            try:
+                from evaluation import ClusterSeparabilityMatrix
+                sep = ClusterSeparabilityMatrix()
+                result = sep.compute(X, labels)
+                st.session_state["_sep_result"] = result
+                if result["worst_pair"]:
+                    _warn(f"Closest cluster pair: C{result['worst_pair'][0]} & "
+                           f"C{result['worst_pair'][1]} "
+                           f"(Mahalanobis dist = {result['min_separation']:.3f})")
+            except Exception as e:
+                st.error(str(e))
+
+    if "_sep_result" in st.session_state:
+        res = st.session_state["_sep_result"]
+        if res.get("matrix") is not None and vis_engine and hasattr(vis_engine, "separability_matrix"):
+            fig_sep = vis_engine.separability_matrix(res["matrix"], sel_alg)
+            _safe_plotly(fig_sep)
+
+
+# ──────────────────────────────────────────────────────────────────
+# PATCH ADVANCED TOOLS PAGE TO INCLUDE NEW PANELS
+# ──────────────────────────────────────────────────────────────────
+
+# NOTE: The Advanced Tools page above uses tab_ksweep, tab_kest, tab_feat,
+# tab_export, tab_diagnostics. We extend it at runtime by checking session page.
+
+if page == "🛠️ Advanced Tools":
+    # The main page block already rendered; add the extra sub-sections.
+    _sep()
+
+    extra_tab_a, extra_tab_b = st.tabs(["🧭 Clusterability Suite", "🔭 Advanced Geometry"])
+    with extra_tab_a:
+        _render_clusterability_panel()
+    with extra_tab_b:
+        _render_density_network_panel()
+
+
+# ──────────────────────────────────────────────────────────────────
+# LIVE METRICS TICKER (sidebar injection when results exist)
+# ──────────────────────────────────────────────────────────────────
+
+if _has_results() and page not in ["🏠 Home", "📁 Data Ingestion"]:
+    with st.sidebar:
+        _sep_html = '<div style="height:1px;background:linear-gradient(90deg,transparent,#2a2a5a,transparent);margin:.8rem 0;"></div>'
+        st.markdown(_sep_html, unsafe_allow_html=True)
+        best = _b("get_best_algorithm")(st.session_state.eval_results)
+        if best:
+            sil = best.metric_value("silhouette")
+            db  = best.metric_value("davies_bouldin")
+            st.markdown(f"""
+            <div style="font-size:.72rem; color:#555577; letter-spacing:.1em; text-transform:uppercase; margin-bottom:.5rem;">Best Result</div>
+            <div style="font-size:.82rem; color:#00e5ff; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                🏆 {best.algorithm_name[:22]}
+            </div>
+            <div style="font-size:.75rem; color:#666688; margin-top:.3rem; line-height:1.8;">
+                Score: <span style="color:#00ff88; font-weight:600;">{best.composite_score:.1f}</span>/100<br>
+                Sil: <span style="color:#9b59ff;">{sil:.4f if sil else 'N/A'}</span><br>
+                DB: <span style="color:#ff8c00;">{db:.4f if db else 'N/A'}</span><br>
+                k: <span style="color:#ffd700;">{best.n_clusters}</span>
+            </div>""", unsafe_allow_html=True)
+
+        if st.session_state.stability_reports:
+            st.markdown(_sep_html, unsafe_allow_html=True)
+            best_stab = max(st.session_state.stability_reports.values(),
+                            key=lambda r: r.stability_score, default=None)
+            if best_stab:
+                gc = _b("get_stability_color")
+                st.markdown(f"""
+                <div style="font-size:.72rem; color:#555577; letter-spacing:.1em; text-transform:uppercase; margin-bottom:.5rem;">Most Stable</div>
+                <div style="font-size:.82rem; color:#ffd700; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    🧪 {best_stab.algorithm_name[:22]}
+                </div>
+                <div style="font-size:.75rem; color:#666688; margin-top:.3rem; line-height:1.8;">
+                    Score: <span style="color:{gc(best_stab.stability_grade.value) if gc else '#00ff88'}; font-weight:600;">{best_stab.stability_score:.1f}</span>/100<br>
+                    Grade: {best_stab.stability_grade.value}<br>
+                    ARI: <span style="color:#00e5ff;">{best_stab.mean_ari:.4f}</span>
+                </div>""", unsafe_allow_html=True)
+
+
+# ──────────────────────────────────────────────────────────────────
+# KEYBOARD SHORTCUT HINT (footer micro-bar)
+# ──────────────────────────────────────────────────────────────────
+
+if page == "🏠 Home":
+    _sep()
+    st.markdown("""
+    <div style="background:#0a0a18; border:1px solid #1a1a2e; border-radius:8px;
+         padding:.7rem 1.4rem; margin-top:1rem;">
+        <div style="font-size:.72rem; color:#444466; letter-spacing:.1em; text-transform:uppercase; margin-bottom:.5rem;">Quick Reference</div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; font-size:.78rem;">
+            <div><span style="color:#00e5ff; font-weight:600;">📁→⚙️→🧬→⚡</span> <span style="color:#555577;">Standard pipeline</span></div>
+            <div><span style="color:#9b59ff; font-weight:600;">Hopkins H > 0.6</span> <span style="color:#555577;">Data is clusterable</span></div>
+            <div><span style="color:#ff4daa; font-weight:600;">Silhouette > 0.5</span> <span style="color:#555577;">Reasonable structure</span></div>
+            <div><span style="color:#ffd700; font-weight:600;">DB Index < 1.0</span> <span style="color:#555577;">Good separation</span></div>
+            <div><span style="color:#00ff88; font-weight:600;">ARI > 0.7</span> <span style="color:#555577;">Highly stable</span></div>
+            <div><span style="color:#ff8c00; font-weight:600;">Diversity > 0.3</span> <span style="color:#555577;">Consensus adds value</span></div>
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL POLISH PANELS — WIRED TO ALL BACKENDS
+# ══════════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────────
+# SMART DATA FINGERPRINT PANEL  (shown on Data Ingestion page)
+# ──────────────────────────────────────────────────────────────────
+
+def _render_smart_detection_panel():
+    """Auto-detect data types, skew, bimodality, ID columns."""
+    if st.session_state.df_raw is None:
+        return
+    df = st.session_state.df_raw
+    _section("🧠 Smart Data Detection")
+    _info("Automatic detection of data quality issues, special column types, and preprocessing recommendations.")
+
+    if st.button("🔍 Run Smart Detection", use_container_width=True, key="smart_det"):
+        with st.spinner("Analysing data characteristics..."):
+            try:
+                from preprocessing import SmartDataTypeDetector
+                detector = SmartDataTypeDetector()
+                detection = detector.detect(df)
+                st.session_state["_smart_detection"] = detection
+            except Exception as e:
+                st.error(str(e))
+
+    det = st.session_state.get("_smart_detection")
+    if det:
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: _metric_card(str(det.get("n_skewed",0)), "Skewed Features", color="#ff8c00")
+        with c2: _metric_card(str(det.get("n_bimodal",0)), "Bimodal Features", color="#9b59ff")
+        with c3: _metric_card(str(det.get("n_timeseries",0)), "Time-Series Cols", color="#ffd700")
+        with c4: _metric_card(str(det.get("n_id_like",0)), "ID-Like Cols (drop!)", color="#ff4444")
+
+        _subsection("Recommendations")
+        for rec in det.get("preprocessing_recommendations", []):
+            kind = "success" if "✅" in rec else "warn" if "⚠️" in rec else "info"
+            st.markdown(f'<div class="{kind}-panel">{rec}</div>', unsafe_allow_html=True)
+
+        if det.get("flag_summary"):
+            _subsection("Flag Summary")
+            flag_df = pd.DataFrame(
+                list(det["flag_summary"].items()), columns=["Flag","Count"]
+            ).sort_values("Count", ascending=False)
+            st.dataframe(flag_df, use_container_width=True, hide_index=True)
+
+
+# ──────────────────────────────────────────────────────────────────
+# DIMENSIONALITY REDUCTION BENCHMARKER PANEL
+# ──────────────────────────────────────────────────────────────────
+
+def _render_dim_reduc_benchmark():
+    """Compare PCA vs ICA vs UMAP vs t-SNE trustworthiness."""
+    if not _has_data():
+        _info("Preprocess data first.")
+        return
+
+    X = st.session_state.X_processed
+    _section("📐 Dimensionality Reduction Benchmark")
+    _info("Find the best embedding for your data before visualising. "
+          "Trustworthiness measures how well local neighbourhood structure is preserved.")
+
+    avail_methods = ["PCA", "ICA", "TruncatedSVD"]
+    try:
+        import umap; avail_methods.append("UMAP")
+    except ImportError: pass
+
+    sel_methods = st.multiselect("Methods to benchmark", avail_methods,
+                                  default=["PCA","ICA","TruncatedSVD"])
+    n_comp = st.slider("Target components", 2, min(20, X.shape[1]-1), 5)
+    max_s  = st.slider("Max sample size", 500, 10000, 3000)
+
+    if st.button("📐 Run Benchmark", type="primary", use_container_width=True, key="dr_bench"):
+        with st.spinner("Benchmarking embeddings..."):
+            try:
+                from preprocessing import DimReducBenchmarker
+                bench = DimReducBenchmarker(n_components=n_comp, max_samples=max_s)
+                results = bench.benchmark(X, methods=sel_methods)
+                st.session_state["_dr_bench"] = results
+            except Exception as e:
+                st.error(str(e))
+
+    dr = st.session_state.get("_dr_bench")
+    if dr:
+        bench_df = pd.DataFrame([{
+            "Method": r["method"],
+            "Trustworthiness": r.get("trustworthiness"),
+            "Reconstruction Error": r.get("reconstruction_error"),
+            "Variance Explained": r.get("variance_explained"),
+            "Runtime(s)": r.get("runtime_seconds"),
+            "Status": r.get("status",""),
+        } for r in dr])
+        st.dataframe(bench_df, use_container_width=True, hide_index=True)
+
+        if len(dr) > 0:
+            best_m = max(dr, key=lambda r: r.get("trustworthiness") or 0)
+            _success(f"Best embedding: **{best_m['method']}** "
+                      f"(trustworthiness = {best_m.get('trustworthiness','N/A')})")
+
+        # Bar chart
+        valid_bench = [r for r in dr if r.get("trustworthiness") is not None]
+        if valid_bench:
+            vis_engine = _get_vis()
+            if vis_engine:
+                fig_bench = go.Figure(go.Bar(
+                    x=[r["method"] for r in valid_bench],
+                    y=[r["trustworthiness"] for r in valid_bench],
+                    marker_color=[_b("Theme").cluster_color(i) for i in range(len(valid_bench))],
+                    text=[f"{r['trustworthiness']:.3f}" for r in valid_bench],
+                    textposition="outside",
+                ))
+                fig_bench.update_layout(
+                    paper_bgcolor=_b("Theme").BG_DARK,
+                    plot_bgcolor=_b("Theme").BG_CARD,
+                    font=dict(color=_b("Theme").TEXT_PRIMARY),
+                    height=350,
+                    yaxis=dict(range=[0,1.05], title="Trustworthiness"),
+                    title="Embedding Trustworthiness Comparison",
+                    showlegend=False,
+                )
+                st.plotly_chart(fig_bench, use_container_width=True)
+
+
+# ──────────────────────────────────────────────────────────────────
+# PERFORMANCE LEADERBOARD PANEL
+# ──────────────────────────────────────────────────────────────────
+
+def _render_leaderboard_panel():
+    """Cross-dataset algorithm performance tracker."""
+    _section("🏆 Algorithm Performance Leaderboard")
+    _info("Track algorithm performance across multiple datasets and runs. "
+          "Helps identify consistently top-performing algorithms for your domain.")
+
+    if "leaderboard" not in st.session_state:
+        from clustering_runner import PerformanceLeaderboard
+        st.session_state["leaderboard"] = PerformanceLeaderboard()
+
+    lb = st.session_state["leaderboard"]
+
+    col_save, col_clear, _ = st.columns([1,1,3])
+    with col_save:
+        if _has_results() and st.button("💾 Save Current Run", use_container_width=True):
+            ds_name = st.session_state.df_filename or f"dataset_{len(lb._history)}"
+            X = st.session_state.X_processed
+            lb.record(ds_name, st.session_state.eval_results, X.shape[0], X.shape[1])
+            _success(f"Saved {len(st.session_state.eval_results)} results for '{ds_name}'")
+    with col_clear:
+        if st.button("🗑️ Clear", use_container_width=True):
+            lb.clear(); st.rerun()
+
+    if lb._history:
+        top_df = lb.top_algorithms(top_n=15)
+        if not top_df.empty:
+            _subsection("Top Algorithms (Mean Composite Score)")
+            st.dataframe(top_df, use_container_width=True, hide_index=True)
+
+        win_df = lb.win_rates()
+        if not win_df.empty:
+            _subsection("Win Rates (% of datasets where ranked #1)")
+            st.dataframe(win_df, use_container_width=True, hide_index=True)
+
+        _subsection("Full History")
+        st.dataframe(lb.to_dataframe(), use_container_width=True, height=350)
+        st.download_button("💾 Export Leaderboard CSV",
+                            lb.to_dataframe().to_csv(index=False).encode(),
+                            "leaderboard.csv", "text/csv")
+    else:
+        _info("No runs recorded yet. Run clustering and click **Save Current Run**.")
+
+
+# ──────────────────────────────────────────────────────────────────
+# WHITENING TRANSFORM PANEL
+# ──────────────────────────────────────────────────────────────────
+
+def _render_whitening_panel():
+    """Apply ZCA/PCA whitening to processed data."""
+    if not _has_data():
+        _info("Preprocess data first.")
+        return
+
+    X = st.session_state.X_processed
+    _section("⬜ Whitening Transform")
+    _info(
+        "Whitening removes correlations and normalises variance — "
+        "critical for GMM, K-Means, and distance-sensitive algorithms on correlated data."
+    )
+
+    method = st.radio("Whitening method",
+                       ["ZCA (preserves feature space)", "PCA (maximal decorrelation)"],
+                       horizontal=True)
+    eps = st.number_input("Epsilon (regularisation)", value=1e-5,
+                           format="%.1e", min_value=1e-8, max_value=0.1)
+
+    if st.button("⬜ Apply Whitening", type="primary", use_container_width=True):
+        with st.spinner("Whitening data..."):
+            try:
+                from preprocessing import WhiteningTransform
+                m = "zca" if "ZCA" in method else "pca"
+                wt = WhiteningTransform(method=m, epsilon=float(eps))
+                X_white, _ = wt.fit_transform(X)
+                st.session_state.X_processed = X_white
+                _success(f"Applied {m.upper()} whitening. Shape: {X_white.shape}")
+
+                # Show correlation before/after
+                vis_engine = _get_vis()
+                if vis_engine:
+                    corr_before = pd.DataFrame(X[:, :min(15, X.shape[1])]).corr()
+                    corr_after  = pd.DataFrame(X_white[:, :min(15, X_white.shape[1])]).corr()
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.markdown("**Before Whitening**")
+                        _safe_plotly(vis_engine.correlation_heatmap(corr_before, 15))
+                    with col_b:
+                        st.markdown("**After Whitening**")
+                        _safe_plotly(vis_engine.correlation_heatmap(corr_after, 15))
+            except Exception as e:
+                st.error(str(e))
+
+
+# ──────────────────────────────────────────────────────────────────
+# RESULT DEDUPLICATION PANEL
+# ──────────────────────────────────────────────────────────────────
+
+def _render_deduplication_panel():
+    """Find and remove identical clustering solutions."""
+    if not st.session_state.batch_result:
+        _info("Run clustering first.")
+        return
+
+    _section("🧹 Result Deduplication")
+    _info("Remove algorithms that produced identical partitions — "
+          "reduces evaluation noise and speeds up stability analysis.")
+
+    if st.button("🔍 Find Duplicates", use_container_width=True):
+        with st.spinner("Fingerprinting all results..."):
+            from clustering_runner import ResultFingerprinter
+            fp = ResultFingerprinter()
+            results = st.session_state.batch_result.results
+            unique, dup_map = fp.deduplicate(results)
+            st.session_state["_dup_map"] = dup_map
+            st.session_state["_unique_results"] = unique
+
+    dup_map = st.session_state.get("_dup_map")
+    if dup_map is not None:
+        c1, c2 = st.columns(2)
+        with c1: _metric_card(str(len(dup_map)), "Duplicate Solutions Found", color="#ff8c00")
+        with c2: _metric_card(
+            str(len(st.session_state.batch_result.results) - len(dup_map)),
+            "Unique Solutions", color="#00ff88")
+
+        if dup_map:
+            dup_df = pd.DataFrame([
+                {"Duplicate Algorithm": k, "Same As": v}
+                for k, v in dup_map.items()
+            ])
+            st.dataframe(dup_df, use_container_width=True, hide_index=True)
+            _info("These algorithms found identical partitions. "
+                  "Consider running only one representative per group in future.")
+
+
+# ──────────────────────────────────────────────────────────────────
+# COMPLEXITY ESTIMATOR PANEL
+# ──────────────────────────────────────────────────────────────────
+
+def _render_complexity_panel():
+    """Empirically estimate algorithm time complexity on this data."""
+    if not _has_data():
+        _info("Preprocess data first.")
+        return
+
+    X = st.session_state.X_processed
+    _section("⏱️ Runtime Complexity Estimator")
+    _info("Empirically fits a power-law T = a·nᵇ to predict runtime at full scale. "
+          "Helps you decide whether an algorithm is feasible before running it.")
+
+    registry = _b("get_registry")()
+    alg_sel = st.selectbox("Algorithm to profile",
+                            registry.ids(),
+                            format_func=lambda x: registry.get(x).name,
+                            key="cplx_alg")
+    n_clusters = st.slider("k for test", 2, 20, st.session_state.n_clusters, key="cplx_k")
+
+    if st.button("⏱️ Estimate Complexity", type="primary", use_container_width=True):
+        with st.spinner("Running complexity estimation (takes ~30s)..."):
+            try:
+                from clustering_runner import ComplexityEstimator
+                est = ComplexityEstimator(sample_sizes=[200, 500, 1000, 2000, 4000])
+                result = est.estimate(alg_sel, X, n_clusters=n_clusters)
+                st.session_state["_cplx_result"] = result
+            except Exception as e:
+                st.error(str(e))
+
+    cres = st.session_state.get("_cplx_result")
+    if cres and cres.get("status") == "ok":
+        c1, c2, c3 = st.columns(3)
+        b = cres.get("exponent_b")
+        pred = cres.get("predicted_runtime_s")
+        cc = cres.get("complexity_class","")
+        with c1: _metric_card(f"{b:.2f}" if b else "N/A", "Complexity Exponent b", color="#9b59ff")
+        with c2: _metric_card(f"{pred:.1f}s" if pred else "N/A", f"Predicted Runtime (n={X.shape[0]})", color="#ff8c00")
+        with c3: st.markdown(f'<div class="info-panel" style="margin-top:.5rem;">{cc}</div>', unsafe_allow_html=True)
+
+        # Plot measured vs fit
+        sizes = cres.get("sizes_tested",[])
+        times = cres.get("runtimes_s",[])
+        if sizes and times and b is not None:
+            import numpy as _np
+            a_val = float(_np.exp(_np.polyfit(_np.log(sizes), _np.log(times), 1)[1]))
+            fit_x = list(range(int(min(sizes)), int(X.shape[0])+1, max(1, X.shape[0]//50)))
+            fit_y = [a_val * (n ** b) for n in fit_x]
+            fig_cplx = go.Figure()
+            fig_cplx.add_trace(go.Scatter(
+                x=sizes, y=times, mode="markers", name="Measured",
+                marker=dict(color=_b("Theme").ACCENT_CYAN, size=10)))
+            fig_cplx.add_trace(go.Scatter(
+                x=fit_x, y=fit_y, mode="lines", name=f"Fit: T∝n^{b:.2f}",
+                line=dict(color=_b("Theme").ACCENT_VIOLET, width=2, dash="dash")))
+            fig_cplx.update_layout(
+                paper_bgcolor=_b("Theme").BG_DARK, plot_bgcolor=_b("Theme").BG_CARD,
+                font=dict(color=_b("Theme").TEXT_PRIMARY), height=340,
+                xaxis_title="Sample size (n)", yaxis_title="Runtime (s)",
+                title=f"Complexity Fit: {registry.get(alg_sel).name}")
+            st.plotly_chart(fig_cplx, use_container_width=True)
+
+
+# ──────────────────────────────────────────────────────────────────
+# MULTI-RESOLUTION CONSENSUS PANEL
+# ──────────────────────────────────────────────────────────────────
+
+def _render_multi_resolution_panel():
+    """Multi-k consensus analysis to find the most stable k."""
+    if not _has_results():
+        _info("Run clustering first.")
+        return
+
+    _section("🔬 Multi-Resolution Consensus")
+    _info("Tests consensus clustering at multiple k values. "
+          "The k with the best consensus silhouette is the most structurally supported.")
+
+    X = st.session_state.X_processed
+    batch = st.session_state.batch_result
+    eval_results = st.session_state.eval_results
+
+    k_vals_str = st.text_input("k values to test", "2,3,4,5,6,7,8,10,12")
+    top_n_algos = st.slider("Use top N algorithms for ensemble", 3, 20, 10)
+
+    if st.button("🔬 Run Multi-Resolution", type="primary", use_container_width=True):
+        with st.spinner("Running multi-resolution consensus..."):
+            try:
+                from consensus import MultiResolutionConsensus, CoAssociationMatrixBuilder
+                k_vals = [int(k.strip()) for k in k_vals_str.split(",") if k.strip()]
+                top_ids = [er.algorithm_id for er in eval_results[:top_n_algos]
+                           if batch.results.get(er.algorithm_id) and
+                           batch.results[er.algorithm_id].succeeded and
+                           len(batch.results[er.algorithm_id].labels) == len(X)]
+                label_arrays = [batch.results[aid].labels for aid in top_ids]
+                if len(label_arrays) < 2:
+                    _warn("Need at least 2 successful results.")
+                else:
+                    mrc = MultiResolutionConsensus(k_range=k_vals)
+                    res = mrc.run(X, label_arrays)
+                    st.session_state["_mrc_result"] = res
+            except Exception as e:
+                st.error(str(e))
+
+    mrc = st.session_state.get("_mrc_result")
+    if mrc and mrc.get("best_k"):
+        _success(f"**Optimal consensus k = {mrc['best_k']}** "
+                  f"(silhouette = {mrc['quality_by_k'].get(mrc['best_k'],'N/A')})")
+        st.markdown(f'<div class="info-panel">{mrc.get("interpretation","")}</div>',
+                    unsafe_allow_html=True)
+
+        vis_engine = _get_vis()
+        if vis_engine and mrc.get("k_values"):
+            fig_mrc = go.Figure()
+            fig_mrc.add_trace(go.Scatter(
+                x=mrc["k_values"], y=mrc["silhouettes"],
+                mode="lines+markers",
+                line=dict(color=_b("Theme").ACCENT_CYAN, width=2),
+                marker=dict(color=_b("Theme").ACCENT_CYAN, size=8),
+                name="Consensus Silhouette",
+            ))
+            fig_mrc.add_vline(x=mrc["best_k"], line_dash="dash",
+                               line_color=_b("Theme").ACCENT_GREEN,
+                               annotation_text=f"Best k={mrc['best_k']}",
+                               annotation_font_color=_b("Theme").ACCENT_GREEN)
+            fig_mrc.update_layout(
+                paper_bgcolor=_b("Theme").BG_DARK,
+                plot_bgcolor=_b("Theme").BG_CARD,
+                font=dict(color=_b("Theme").TEXT_PRIMARY), height=380,
+                xaxis_title="k", yaxis_title="Consensus Silhouette",
+                title="Multi-Resolution Consensus Quality")
+            st.plotly_chart(fig_mrc, use_container_width=True)
+
+        if mrc.get("labels") is not None and vis_engine:
+            _subsection("Best-k Consensus Projection")
+            mrc_method = st.selectbox("Embedding", _b("available_embedding_methods")(), key="mrc_vis")
+            fig_mrc_scatter = vis_engine.scatter_2d(
+                X, mrc["labels"], method=mrc_method,
+                algorithm_name=f"Multi-Res Consensus k={mrc['best_k']}")
+            _safe_plotly(fig_mrc_scatter)
+
+
+# ──────────────────────────────────────────────────────────────────
+# CLUSTER PROFILES (per-cluster feature signatures)
+# ──────────────────────────────────────────────────────────────────
+
+def _render_cluster_profiles_panel():
+    """Detailed per-cluster characterisation with AI naming."""
+    if not _has_results():
+        _info("Run clustering first.")
+        return
+
+    X = st.session_state.X_processed
+    batch = st.session_state.batch_result
+    eval_results = st.session_state.eval_results
+    feature_names = st.session_state.feature_names
+    vis_engine = _get_vis()
+
+    _section("🔬 Cluster Profile Explorer")
+    _info("Detailed characterisation of each cluster: feature signatures, "
+          "outlier rates, cohesion scores, and auto-generated descriptive labels.")
+
+    alg_options = {er.algorithm_id: er.algorithm_name for er in eval_results}
+    sel_alg = st.selectbox("Algorithm", list(alg_options.keys()),
+                            format_func=lambda x: alg_options[x], key="cp_alg")
+    labels = batch.results[sel_alg].labels if sel_alg in batch.results else None
+    if labels is None or not batch.results[sel_alg].succeeded:
+        _warn("No valid labels for selected algorithm.")
+        return
+
+    if st.button("🔬 Generate Cluster Profiles", use_container_width=True):
+        with st.spinner("Profiling clusters..."):
+            try:
+                from consensus import ConsensusClusterProfiler
+                profiler = ConsensusClusterProfiler()
+                profiles = profiler.profile(X, labels, feature_names)
+                st.session_state["_cluster_profiles"] = profiles
+            except Exception as e:
+                st.error(str(e))
+
+    profiles = st.session_state.get("_cluster_profiles")
+    if profiles:
+        for cid, prof in sorted(profiles.items()):
+            color = _b("Theme").cluster_color(cid) if _b("Theme") else "#00e5ff"
+            with st.expander(f"Cluster {cid} — '{prof['label']}' "
+                              f"(n={prof['size']}, {prof['fraction']*100:.1f}%)"):
+                c1, c2, c3 = st.columns(3)
+                with c1: _metric_card(str(prof["size"]), "Size", color=color)
+                with c2: _metric_card(f"{prof['outlier_rate']*100:.1f}%",
+                                       "Outlier Rate",
+                                       color="#ff8c00" if prof["outlier_rate"]>0.15 else "#00ff88")
+                with c3: _metric_card(f"{max(0,prof['cohesion_score']):.3f}",
+                                       "Cohesion", color=color)
+
+                _subsection("Feature Signature (most distinctive features)")
+                sig_df = pd.DataFrame(prof["feature_signature"])
+                if not sig_df.empty:
+                    st.dataframe(sig_df, use_container_width=True, hide_index=True)
+
+        # AI cluster naming
+        _sep()
+        if st.button("🤖 AI: Name All Clusters", use_container_width=True):
+            context = "\n".join([
+                f"Cluster {cid}: size={p['size']}, "
+                f"top features: {[s['feature'] + '(' + s['direction'] + ')' for s in p['feature_signature'][:3]]}"
+                for cid, p in profiles.items()
+            ])
+            prompt = ("Given these cluster descriptions, suggest a memorable, "
+                       "domain-agnostic 2-3 word label for each cluster that a "
+                       "data scientist could use in a report. Format: 'Cluster N: Label'")
+            with st.spinner("🤖 Naming clusters..."):
+                resp = _gemini_query(prompt, context)
+            _render_ai_response(resp)
+
+
+# ──────────────────────────────────────────────────────────────────
+# INJECT ALL NEW PANELS INTO CORRECT PAGES
+# ──────────────────────────────────────────────────────────────────
+
+# These run AFTER their respective page blocks, only when that page is active
+
+if page == "📁 Data Ingestion" and st.session_state.df_raw is not None:
+    _sep()
+    _render_smart_detection_panel()
+
+elif page == "⚙️ Preprocessing" and _has_data():
+    _sep()
+    with st.expander("⬜ Apply Whitening Transform (advanced)", expanded=False):
+        _render_whitening_panel()
+    with st.expander("📐 Dimensionality Reduction Benchmark", expanded=False):
+        _render_dim_reduc_benchmark()
+
+elif page == "⚡ Execution Engine":
+    if st.session_state.batch_result:
+        _sep()
+        with st.expander("🧹 Duplicate Result Detector", expanded=False):
+            _render_deduplication_panel()
+
+elif page == "🛠️ Advanced Tools":
+    _sep()
+    _tabs_extra = st.tabs([
+        "🏆 Leaderboard", "⏱️ Complexity Estimator",
+        "🔬 Multi-Resolution Consensus", "📊 Cluster Profiles"
+    ])
+    with _tabs_extra[0]:
+        _render_leaderboard_panel()
+    with _tabs_extra[1]:
+        _render_complexity_panel()
+    with _tabs_extra[2]:
+        _render_multi_resolution_panel()
+    with _tabs_extra[3]:
+        _render_cluster_profiles_panel()
+
+elif page == "🤝 Consensus Forge" and _has_results():
+    _sep()
+    with st.expander("🔬 Multi-Resolution Consensus", expanded=False):
+        _render_multi_resolution_panel()
+
+
+# ══════════════════════════════════════════════════════════════════
+# EXECUTION TIMELINE CHART (shown after any run)
+# ══════════════════════════════════════════════════════════════════
+
+def _render_execution_timeline():
+    """Gantt-style chart showing algorithm execution order and duration."""
+    br = st.session_state.batch_result
+    if not br:
+        return
+    _section("⏱️ Execution Timeline")
+    rows = []
+    cumulative = 0.0
+    for aid, cr in sorted(br.results.items(),
+                           key=lambda x: x[1].runtime_seconds):
+        if cr.status.value in ("skipped",""):
+            continue
+        rows.append({
+            "Algorithm": getattr(cr,"algorithm_name",aid)[:30],
+            "Start": round(cumulative, 3),
+            "End": round(cumulative + cr.runtime_seconds, 3),
+            "Runtime": round(cr.runtime_seconds, 3),
+            "Status": cr.status.value,
+        })
+        cumulative += cr.runtime_seconds
+
+    if not rows:
+        return
+
+    T = _b("Theme")
+    status_color = {
+        "success":"#00ff88","cached":"#00ccff",
+        "failed":"#ff4444","timeout":"#ff8c00","skipped":"#555577"
+    }
+    fig_tl = go.Figure()
+    for r in rows:
+        col = status_color.get(r["Status"],"#9b59ff")
+        fig_tl.add_trace(go.Bar(
+            x=[r["Runtime"]], y=[r["Algorithm"]],
+            base=[r["Start"]], orientation="h",
+            marker_color=col, marker_line_width=0,
+            name=r["Status"], showlegend=False,
+            hovertemplate=f"<b>{r['Algorithm']}</b><br>{r['Runtime']}s<extra></extra>",
+        ))
+    fig_tl.update_layout(
+        paper_bgcolor=T.BG_DARK if T else "#07070f",
+        plot_bgcolor=T.BG_CARD if T else "#0d0d1e",
+        font=dict(color=T.TEXT_PRIMARY if T else "#e0e0f0"),
+        height=max(400, 22*len(rows)),
+        xaxis_title="Cumulative Time (s)",
+        title="Algorithm Execution Timeline",
+        barmode="stack",
+        yaxis=dict(autorange="reversed"),
+    )
+    st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar":False})
+
+
+if page == "⚡ Execution Engine" and st.session_state.batch_result:
+    _sep()
+    with st.expander("⏱️ Execution Timeline", expanded=False):
+        _render_execution_timeline()
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL KEYBOARD SHORTCUTS REFERENCE (collapsible)
+# ══════════════════════════════════════════════════════════════════
+
+if page == "🛠️ Advanced Tools":
+    with st.expander("📖 Complete API & Method Reference"):
+        st.markdown("""
+        #### Evaluation Metrics
+        | Metric | Range | Ideal | Direction |
+        |--------|-------|-------|-----------|
+        | Silhouette | [-1, 1] | 1 | Higher better |
+        | Davies-Bouldin | [0, ∞) | 0 | Lower better |
+        | Calinski-Harabász | [0, ∞) | ∞ | Higher better |
+        | Dunn Index | [0, ∞) | ∞ | Higher better |
+        | Xie-Beni | [0, ∞) | 0 | Lower better |
+        | DBCV | [-1, 1] | 1 | Higher better |
+        | Hopkins H | [0, 1] | 1 | Higher = more clusterable |
+        | Noise Ratio | [0, 1] | 0 | Lower better |
+
+        #### Stability Metrics
+        | Metric | Meaning |
+        |--------|---------|
+        | ARI | Agreement with reference (0=random, 1=identical) |
+        | AMI | Mutual info adjusted for chance |
+        | NMI | Normalised mutual information |
+        | Jaccard | Set overlap between matched clusters |
+
+        #### Consensus Methods
+        | Method | Best for |
+        |--------|----------|
+        | EAC Average | General purpose, most reliable |
+        | CSPA | Non-convex shapes, large k |
+        | Bayesian | When quality varies widely across algorithms |
+        | Hybrid | High diversity ensembles |
+        | Meta-Clustering | When label arrays are high-dimensional |
+        """)

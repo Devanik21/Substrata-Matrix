@@ -1028,3 +1028,315 @@ def format_metric_value(metric_id: str, value: float) -> str:
     if metric_id == "calinski_harabasz":
         return f"{value:.1f}"
     return f"{value:.4f}"
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL POLISH — WORLD-CLASS ADDITIONS
+# ══════════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────────
+# HOPKINS STATISTIC — CLUSTERABILITY TEST
+# ──────────────────────────────────────────────────────────────────
+
+class HopkinsStatistic:
+    """
+    Measures clustering tendency BEFORE running any algorithm.
+    H ≈ 0.5  → random (no cluster structure)
+    H → 1.0  → highly clusterable
+    H → 0.0  → uniformly distributed
+
+    Essential first step — if Hopkins < 0.5, clustering is meaningless.
+    """
+    def __init__(self, n_samples: int = 150, random_state: int = 42):
+        self.n_samples = n_samples
+        self.random_state = random_state
+
+    def compute(self, X: np.ndarray) -> Dict[str, Any]:
+        n, d = X.shape
+        m = min(self.n_samples, max(n // 5, 5), 200)
+        if m < 5:
+            return {"hopkins": None, "interpretation": "Too few samples", "is_clusterable": None}
+        rng = np.random.default_rng(self.random_state)
+        try:
+            from sklearn.neighbors import NearestNeighbors
+            idx = rng.choice(n, m, replace=False)
+            X_sample = X[idx]
+            X_min, X_max = X.min(axis=0), X.max(axis=0)
+            X_range = np.where((X_max - X_min) < 1e-10, 1.0, X_max - X_min)
+            X_rand = rng.uniform(0, 1, (m, d)) * X_range + X_min
+            nbrs = NearestNeighbors(n_neighbors=2, algorithm="ball_tree").fit(X)
+            u = nbrs.kneighbors(X_rand)[0][:, 0]
+            w = nbrs.kneighbors(X_sample)[0][:, 1]
+            sum_u = float(np.sum(u ** d))
+            sum_w = float(np.sum(w ** d))
+            denom = sum_u + sum_w
+            if denom < 1e-15:
+                return {"hopkins": None, "interpretation": "Degenerate", "is_clusterable": None}
+            H = sum_u / denom
+        except Exception as e:
+            return {"hopkins": None, "interpretation": str(e), "is_clusterable": None}
+        interp, clusterable = self._interpret(H)
+        return {"hopkins": round(float(H), 4), "interpretation": interp,
+                "is_clusterable": clusterable, "m_used": m,
+                "recommendation": self._recommend(H)}
+
+    @staticmethod
+    def _interpret(H: float) -> tuple:
+        if H >= 0.75: return "Highly clusterable — strong spatial structure.", True
+        if H >= 0.60: return "Moderately clusterable — reasonable structure.", True
+        if H >= 0.50: return "Weakly clusterable — proceed with caution.", False
+        if H >= 0.40: return "Near-random — clustering may not be meaningful.", False
+        return "Uniformly distributed — clustering likely meaningless.", False
+
+    @staticmethod
+    def _recommend(H: float) -> str:
+        if H >= 0.75: return "Proceed confidently. Most algorithms will reveal structure."
+        if H >= 0.60: return "Viable. Prefer robust algorithms (HDBSCAN, Spectral, GMM)."
+        if H >= 0.50: return "Use density-based algorithms and validate carefully."
+        return "Consider dimensionality reduction or domain filtering before clustering."
+
+
+# ──────────────────────────────────────────────────────────────────
+# GAP STATISTIC — OPTIMAL K SELECTOR
+# ──────────────────────────────────────────────────────────────────
+
+class GapStatistic:
+    """
+    Tibshirani et al. (2001) Gap Statistic.
+    Compares within-cluster dispersion against reference uniform distribution.
+    Gold standard for optimal k selection.
+    """
+    def __init__(self, k_range=None, n_refs: int = 10, random_state: int = 42):
+        self.k_range = k_range or range(1, 11)
+        self.n_refs = n_refs
+        self.random_state = random_state
+
+    def compute(self, X: np.ndarray) -> Dict[str, Any]:
+        from sklearn.cluster import KMeans
+        rng = np.random.default_rng(self.random_state)
+        X_min, X_max = X.min(axis=0), X.max(axis=0)
+        X_range = np.where((X_max - X_min) < 1e-10, 1.0, X_max - X_min)
+
+        gaps, sks, log_wks, log_wk_refs_mean = [], [], [], []
+        for k in self.k_range:
+            km = KMeans(n_clusters=k, n_init=3, random_state=self.random_state, max_iter=200)
+            km.fit(X)
+            wk = self._wcd(X, km.labels_, km.cluster_centers_)
+            log_wk = np.log(max(wk, 1e-15))
+            log_wks.append(log_wk)
+            ref_lwks = []
+            for b in range(self.n_refs):
+                Xr = rng.uniform(0, 1, X.shape) * X_range + X_min
+                km_r = KMeans(n_clusters=k, n_init=1, random_state=b, max_iter=100)
+                km_r.fit(Xr)
+                wkr = self._wcd(Xr, km_r.labels_, km_r.cluster_centers_)
+                ref_lwks.append(np.log(max(wkr, 1e-15)))
+            ra = np.array(ref_lwks)
+            gap_k = float(ra.mean() - log_wk)
+            sdk = float(ra.std() * np.sqrt(1 + 1 / self.n_refs))
+            gaps.append(gap_k); sks.append(sdk)
+            log_wk_refs_mean.append(float(ra.mean()))
+
+        # Optimal k
+        optimal_k = list(self.k_range)[0]
+        ks = list(self.k_range)
+        for i in range(len(gaps) - 1):
+            if gaps[i] >= gaps[i + 1] - sks[i + 1]:
+                optimal_k = ks[i]; break
+        else:
+            optimal_k = ks[int(np.argmax(gaps))]
+
+        return {"k_values": ks, "gaps": [round(g,4) for g in gaps],
+                "sk": [round(s,4) for s in sks],
+                "log_wk": [round(w,4) for w in log_wks],
+                "log_wk_ref": [round(w,4) for w in log_wk_refs_mean],
+                "optimal_k": int(optimal_k)}
+
+    @staticmethod
+    def _wcd(X, labels, centers) -> float:
+        total = 0.0
+        for k, c in enumerate(centers):
+            pts = X[labels == k]
+            if len(pts) > 1:
+                total += float(np.sum((pts - c) ** 2)) / (2 * len(pts))
+        return total
+
+
+# ──────────────────────────────────────────────────────────────────
+# DENSITY-BASED CLUSTER VALIDITY (DBCV)
+# ──────────────────────────────────────────────────────────────────
+
+class DBCVIndex:
+    """
+    Moulavi et al. (2014) DBCV — proper validity for density-based clusters.
+    Range [-1, 1]. Unlike silhouette, correctly handles arbitrary shapes.
+    """
+    MAX_SAMPLES = 3000
+
+    def compute(self, X: np.ndarray, labels: np.ndarray) -> Dict[str, Any]:
+        valid = labels != -1
+        Xv, lv = X[valid], labels[valid]
+        unique = np.unique(lv)
+        if len(unique) < 2:
+            return {"dbcv": None, "error": "< 2 clusters"}
+        if len(Xv) > self.MAX_SAMPLES:
+            idx = np.random.default_rng(42).choice(len(Xv), self.MAX_SAMPLES, replace=False)
+            Xv, lv = Xv[idx], lv[idx]
+            unique = np.unique(lv)
+        try:
+            clusters = {c: Xv[lv == c] for c in unique}
+            vc_list = []
+            for c in unique:
+                pts = clusters[c]
+                if len(pts) < 2: vc_list.append(0.0); continue
+                int_s = self._internal(pts)
+                ext_s = self._external(pts, clusters, c)
+                vc = (ext_s - int_s) / max(ext_s, int_s, 1e-10)
+                vc_list.append(float(np.clip(vc, -1, 1)))
+            sizes = np.array([len(clusters[c]) for c in unique])
+            dbcv = float(np.average(vc_list, weights=sizes))
+            return {"dbcv": round(dbcv, 4),
+                    "per_cluster": {int(c): round(v, 4) for c, v in zip(unique, vc_list)},
+                    "interpretation": self._interp(dbcv)}
+        except Exception as e:
+            return {"dbcv": None, "error": str(e)}
+
+    @staticmethod
+    def _core_dist(pts, min_pts=5):
+        from sklearn.neighbors import NearestNeighbors
+        k = min(min_pts, len(pts)-1)
+        nbrs = NearestNeighbors(n_neighbors=k+1).fit(pts)
+        return nbrs.kneighbors(pts)[0][:, -1]
+
+    def _internal(self, pts):
+        cd = self._core_dist(pts)
+        mr = np.maximum(cd[:, None], cd[None, :])
+        np.fill_diagonal(mr, 0)
+        return float(mr.max())
+
+    def _external(self, pts_c, clusters, cid):
+        from scipy.spatial.distance import cdist
+        min_sep = np.inf
+        for c2, pts2 in clusters.items():
+            if c2 == cid or len(pts2) < 1: continue
+            d = cdist(pts_c[:40], pts2[:40]).min()
+            min_sep = min(min_sep, float(d))
+        return min_sep if min_sep != np.inf else 0.0
+
+    @staticmethod
+    def _interp(v):
+        if v >= 0.6:  return "Excellent density-based structure"
+        if v >= 0.35: return "Good density-based structure"
+        if v >= 0.1:  return "Moderate structure"
+        if v >= -0.1: return "Weak structure"
+        return "Poor density-based structure"
+
+
+# ──────────────────────────────────────────────────────────────────
+# BOOTSTRAP CONFIDENCE INTERVALS FOR METRICS
+# ──────────────────────────────────────────────────────────────────
+
+class MetricBootstrapCI:
+    """Bootstrap CI for silhouette score — quantifies metric uncertainty."""
+    def __init__(self, n_bootstrap=50, confidence=0.95, max_sample=5000, random_state=42):
+        self.n_bootstrap = n_bootstrap
+        self.confidence = confidence
+        self.max_sample = max_sample
+        self.rng = np.random.default_rng(random_state)
+
+    def silhouette_ci(self, X: np.ndarray, labels: np.ndarray) -> Dict[str, Any]:
+        from sklearn.metrics import silhouette_score
+        valid = labels != -1
+        Xv, lv = X[valid], labels[valid]
+        if len(np.unique(lv)) < 2 or len(Xv) < 10:
+            return {"mean": None, "ci_lower": None, "ci_upper": None}
+        n = len(Xv); sn = min(n, self.max_sample)
+        scores = []
+        for _ in range(self.n_bootstrap):
+            idx = self.rng.choice(n, sn, replace=True)
+            Xs, ls = Xv[idx], lv[idx]
+            if len(np.unique(ls)) < 2: continue
+            try:
+                scores.append(float(silhouette_score(Xs, ls)))
+            except Exception:
+                pass
+        if not scores:
+            return {"mean": None, "ci_lower": None, "ci_upper": None}
+        a = 1 - self.confidence
+        return {"mean": round(float(np.mean(scores)), 4),
+                "ci_lower": round(float(np.percentile(scores, 100*a/2)), 4),
+                "ci_upper": round(float(np.percentile(scores, 100*(1-a/2))), 4),
+                "std": round(float(np.std(scores)), 4),
+                "n_bootstrap": len(scores)}
+
+
+# ──────────────────────────────────────────────────────────────────
+# CLUSTER SEPARABILITY MATRIX
+# ──────────────────────────────────────────────────────────────────
+
+class ClusterSeparabilityMatrix:
+    """
+    Computes pairwise separability between clusters using
+    Bhattacharyya distance and Mahalanobis distance.
+    Reveals which cluster pairs are confused.
+    """
+    def compute(self, X: np.ndarray, labels: np.ndarray) -> Dict[str, Any]:
+        unique = [c for c in np.unique(labels) if c != -1]
+        n_cls = len(unique)
+        if n_cls < 2:
+            return {"matrix": None, "worst_pair": None}
+        clusters = {c: X[labels == c] for c in unique}
+        means = {c: pts.mean(axis=0) for c, pts in clusters.items()}
+        sep_mat = np.zeros((n_cls, n_cls))
+        from scipy.spatial.distance import mahalanobis
+        from scipy.linalg import inv
+        try:
+            cov_pooled = np.cov(X.T) + np.eye(X.shape[1]) * 1e-6
+            cov_inv = inv(cov_pooled)
+        except Exception:
+            cov_inv = np.eye(X.shape[1])
+        worst_dist, worst_pair = np.inf, None
+        for i, ci in enumerate(unique):
+            for j, cj in enumerate(unique):
+                if i == j: continue
+                try:
+                    d = float(mahalanobis(means[ci], means[cj], cov_inv))
+                except Exception:
+                    d = float(np.linalg.norm(means[ci] - means[cj]))
+                sep_mat[i, j] = round(d, 4)
+                if i < j and d < worst_dist:
+                    worst_dist = d; worst_pair = (int(ci), int(cj))
+        df = pd.DataFrame(sep_mat,
+                          index=[f"C{c}" for c in unique],
+                          columns=[f"C{c}" for c in unique])
+        return {"matrix": df, "worst_pair": worst_pair,
+                "min_separation": round(worst_dist, 4) if worst_dist != np.inf else None}
+
+
+# ──────────────────────────────────────────────────────────────────
+# FULL CLUSTERABILITY REPORT
+# ──────────────────────────────────────────────────────────────────
+
+def run_clusterability_analysis(X: np.ndarray) -> Dict[str, Any]:
+    """Hopkins statistic + PCA intrinsic dim + variance analysis."""
+    hop = HopkinsStatistic().compute(X)
+    n, d = X.shape
+    from sklearn.decomposition import PCA
+    nc = min(d, n-1, 30)
+    pca = PCA(n_components=nc).fit(X)
+    cum = np.cumsum(pca.explained_variance_ratio_)
+    intrinsic = int(np.searchsorted(cum, 0.90)) + 1
+    low_var = int((X.var(axis=0) < 0.001).sum())
+    return {"n_samples": n, "n_features": d,
+            "hopkins": hop, "intrinsic_dim_90pct": intrinsic,
+            "low_var_features": low_var,
+            "is_clusterable": hop.get("is_clusterable"),
+            "recommendation": hop.get("recommendation", "")}
+
+
+def run_gap_statistic(X: np.ndarray, k_range=None, n_refs: int = 10) -> Dict[str, Any]:
+    return GapStatistic(k_range=k_range or range(1, 11), n_refs=n_refs).compute(X)
+
+
+def compute_dbcv(X: np.ndarray, labels: np.ndarray) -> Dict[str, Any]:
+    return DBCVIndex().compute(X, labels)

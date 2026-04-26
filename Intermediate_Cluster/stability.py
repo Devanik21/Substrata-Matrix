@@ -1141,3 +1141,502 @@ def build_stability_summary(reports: Dict[str, StabilityReport]) -> Dict[str, An
         "grade_distribution": {g: grades.count(g) for g in set(grades)},
         "highly_stable_count": sum(1 for g in grades if g == StabilityGrade.HIGHLY_STABLE.value),
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL POLISH — ADVANCED STABILITY ADDITIONS
+# ══════════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────────
+# CLUSTER-MAP TRACKER — which clusters survive perturbation
+# ──────────────────────────────────────────────────────────────────
+
+class ClusterMapTracker:
+    """
+    Tracks which original clusters are recovered across perturbed runs.
+    Produces a cluster survival map: for each run, which reference
+    clusters were re-discovered and which were merged/split/lost.
+    """
+    def __init__(self, jaccard_threshold: float = 0.5):
+        self.jaccard_threshold = jaccard_threshold
+
+    def track(self, ref_labels: np.ndarray,
+              perturbed_label_list: List[np.ndarray]) -> Dict[str, Any]:
+        ref_unique = [c for c in np.unique(ref_labels) if c != -1]
+        n_runs = len(perturbed_label_list)
+        # survival_map[cluster_id] = list of recovered/merged/split/lost per run
+        survival = {c: [] for c in ref_unique}
+        for run_labels in perturbed_label_list:
+            for c in ref_unique:
+                ref_mask = ref_labels == c
+                best_j = 0.0
+                status = "lost"
+                for nc in np.unique(run_labels[run_labels != -1]):
+                    new_mask = run_labels == nc
+                    if len(new_mask) != len(ref_mask): continue
+                    inter = int((ref_mask & new_mask).sum())
+                    union = int((ref_mask | new_mask).sum())
+                    j = inter / max(union, 1)
+                    if j > best_j:
+                        best_j = j
+                if best_j >= self.jaccard_threshold:
+                    status = "recovered"
+                elif best_j >= 0.25:
+                    status = "partial"
+                survival[c].append({"status": status, "jaccard": round(best_j, 3)})
+
+        summary = {}
+        for c, runs in survival.items():
+            n_recovered = sum(1 for r in runs if r["status"] == "recovered")
+            n_partial   = sum(1 for r in runs if r["status"] == "partial")
+            n_lost      = sum(1 for r in runs if r["status"] == "lost")
+            summary[int(c)] = {
+                "recovery_rate": round(n_recovered / max(n_runs, 1), 3),
+                "partial_rate":  round(n_partial  / max(n_runs, 1), 3),
+                "lost_rate":     round(n_lost     / max(n_runs, 1), 3),
+                "mean_jaccard":  round(float(np.mean([r["jaccard"] for r in runs])), 3),
+                "is_robust":     (n_recovered / max(n_runs, 1)) >= 0.7,
+            }
+        robust_count = sum(1 for v in summary.values() if v["is_robust"])
+        return {"cluster_map": summary, "n_robust": robust_count,
+                "n_total": len(ref_unique),
+                "overall_robustness": round(robust_count / max(len(ref_unique), 1), 3)}
+
+
+# ──────────────────────────────────────────────────────────────────
+# PERTURBATION TRAJECTORY ANALYSER
+# ──────────────────────────────────────────────────────────────────
+
+class PerturbationTrajectoryAnalyser:
+    """
+    Analyses how clustering quality degrades along a perturbation trajectory.
+    Fits a degradation curve and extracts key statistics:
+    - Half-life noise level
+    - Degradation rate (slope)
+    - Plateau ARI (ARI at maximum noise)
+    """
+    def analyse_trajectory(self, noise_levels: List[float],
+                            mean_aris: List[float]) -> Dict[str, Any]:
+        if len(noise_levels) < 3 or len(mean_aris) < 3:
+            return {}
+        import scipy.optimize as opt
+        levels = np.array(noise_levels)
+        aris   = np.array(mean_aris)
+        # Fit exponential decay: ARI(noise) = a * exp(-b * noise) + c
+        try:
+            def exp_decay(x, a, b, c):
+                return a * np.exp(-b * x) + c
+            popt, _ = opt.curve_fit(exp_decay, levels, aris,
+                                     p0=[0.8, 5.0, 0.1], maxfev=1000,
+                                     bounds=([0, 0, -0.5], [1.5, 50, 1.0]))
+            a, b, c = popt
+            half_life = float(np.log(2) / max(b, 1e-6))
+            plateau = float(c)
+            fitted = [round(float(exp_decay(x, *popt)), 4) for x in levels]
+        except Exception:
+            half_life = None; plateau = None; fitted = list(aris)
+
+        degradation_rate = float((aris[0] - aris[-1]) / max(levels[-1] - levels[0], 1e-6))
+        return {
+            "initial_ari":     round(float(aris[0]), 4),
+            "final_ari":       round(float(aris[-1]), 4),
+            "degradation_rate": round(degradation_rate, 4),
+            "half_life_noise": round(half_life, 4) if half_life else None,
+            "plateau_ari":     round(plateau, 4) if plateau else None,
+            "fitted_curve":    fitted,
+            "is_resilient":    degradation_rate < 1.0 and (aris[-1] > 0.3 if len(aris) else False),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# CLUSTER CONFIDENCE SCORER
+# ──────────────────────────────────────────────────────────────────
+
+class ClusterConfidenceScorer:
+    """
+    Assigns per-point confidence scores for cluster assignments.
+    Based on: (1) silhouette value, (2) k-NN label consistency,
+              (3) distance to cluster boundary.
+    High confidence → point is well inside its cluster.
+    Low confidence  → point is near a cluster boundary (ambiguous).
+    """
+    def __init__(self, n_neighbors: int = 15):
+        self.n_neighbors = n_neighbors
+
+    def score(self, X: np.ndarray, labels: np.ndarray) -> np.ndarray:
+        """Returns per-point confidence in [0, 1]."""
+        n = len(X)
+        confidence = np.zeros(n, dtype=np.float32)
+        valid_mask = labels != -1
+        if valid_mask.sum() < 4:
+            return confidence
+
+        Xv, lv = X[valid_mask], labels[valid_mask]
+        valid_idx = np.where(valid_mask)[0]
+
+        # k-NN label consistency
+        try:
+            from sklearn.neighbors import NearestNeighbors
+            k = min(self.n_neighbors, len(Xv) - 1)
+            nbrs = NearestNeighbors(n_neighbors=k+1).fit(Xv)
+            _, indices = nbrs.kneighbors(Xv)
+            knn_conf = np.zeros(len(Xv))
+            for i in range(len(Xv)):
+                neighbor_labels = lv[indices[i, 1:]]
+                knn_conf[i] = float((neighbor_labels == lv[i]).mean())
+        except Exception:
+            knn_conf = np.ones(len(Xv)) * 0.5
+
+        # Silhouette-based confidence
+        sil_conf = np.zeros(len(Xv))
+        try:
+            from sklearn.metrics import silhouette_samples
+            sil = silhouette_samples(Xv, lv)
+            sil_conf = (sil + 1) / 2  # Map to [0,1]
+        except Exception:
+            sil_conf = knn_conf.copy()
+
+        # Combined
+        combined = 0.6 * sil_conf + 0.4 * knn_conf
+        for i, orig_idx in enumerate(valid_idx):
+            confidence[orig_idx] = float(np.clip(combined[i], 0, 1))
+
+        return confidence
+
+    def uncertain_points(self, X: np.ndarray, labels: np.ndarray,
+                          threshold: float = 0.4) -> np.ndarray:
+        """Returns indices of low-confidence (uncertain) points."""
+        conf = self.score(X, labels)
+        return np.where(conf < threshold)[0]
+
+    def border_points(self, X: np.ndarray, labels: np.ndarray,
+                       threshold: float = 0.5) -> Dict[int, np.ndarray]:
+        """Returns {cluster_id: [indices of border points]}."""
+        conf = self.score(X, labels)
+        border = {}
+        for c in np.unique(labels[labels != -1]):
+            cluster_mask = labels == c
+            low_conf = conf < threshold
+            border_idx = np.where(cluster_mask & low_conf)[0]
+            border[int(c)] = border_idx
+        return border
+
+
+# ──────────────────────────────────────────────────────────────────
+# STABILITY TREND ANALYSER
+# ──────────────────────────────────────────────────────────────────
+
+class StabilityTrendAnalyser:
+    """
+    Analyses if stability changes systematically across
+    perturbation levels (increasing noise → decreasing ARI).
+    Tests monotonicity and significance of the trend.
+    """
+    def analyse(self, report: "StabilityReport") -> Dict[str, Any]:
+        from scipy.stats import spearmanr, kendalltau
+        runs = [r for r in report.runs if r.succeeded]
+        if len(runs) < 4:
+            return {"monotonic": None, "trend_score": None}
+
+        # Group by perturbation level
+        from collections import defaultdict
+        by_level = defaultdict(list)
+        for r in runs:
+            by_level[round(r.perturbation_level, 3)].append(r.ari_score)
+        levels = sorted(by_level.keys())
+        mean_aris = [float(np.mean(by_level[l])) for l in levels]
+
+        if len(levels) < 3:
+            return {"monotonic": None, "trend_score": None}
+
+        try:
+            rho, p_rho = spearmanr(levels, mean_aris)
+            tau, p_tau = kendalltau(levels, mean_aris)
+        except Exception:
+            return {"monotonic": None, "trend_score": None}
+
+        is_monotonic = rho < -0.6 and p_rho < 0.1
+        trend_score = float(-rho)  # Higher = more stability degradation with noise
+
+        return {
+            "levels": [round(l, 3) for l in levels],
+            "mean_aris": [round(a, 4) for a in mean_aris],
+            "spearman_rho": round(float(rho), 4),
+            "spearman_p": round(float(p_rho), 4),
+            "kendall_tau": round(float(tau), 4),
+            "is_monotonically_degrading": bool(is_monotonic),
+            "degradation_strength": round(float(np.clip(trend_score, 0, 1)), 4),
+            "interpretation": (
+                "Stability degrades predictably with noise." if is_monotonic
+                else "Stability pattern is non-monotonic — clusterer may be noise-resistant in some regimes."
+            ),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# MULTI-RUN CONSENSUS LABELS (Stability-based)
+# ──────────────────────────────────────────────────────────────────
+
+class StabilityBasedConsensusLabeler:
+    """
+    Uses stability runs to build a robust label assignment.
+    For each point, takes the majority vote across all stable runs.
+    Only marks a point as 'confident' if agreement > threshold.
+    """
+    def __init__(self, confidence_threshold: float = 0.7):
+        self.confidence_threshold = confidence_threshold
+
+    def label(self, n_samples: int,
+               runs: List["PerturbationRun"],
+               n_clusters: int) -> Dict[str, Any]:
+        valid_runs = [r for r in runs
+                      if r.succeeded and len(r.labels) == n_samples]
+        if not valid_runs:
+            return {"labels": np.full(n_samples, -1), "confidence": np.zeros(n_samples)}
+
+        # Majority vote matrix [n_samples x n_clusters]
+        vote_matrix = np.zeros((n_samples, n_clusters + 1), dtype=np.float32)
+        for r in valid_runs:
+            for i in range(n_samples):
+                c = int(r.labels[i])
+                if 0 <= c < n_clusters:
+                    vote_matrix[i, c] += 1
+                else:
+                    vote_matrix[i, n_clusters] += 1
+
+        vote_matrix /= len(valid_runs)
+        final_labels = vote_matrix[:, :n_clusters].argmax(axis=1).astype(np.int32)
+        confidence   = vote_matrix[:, :n_clusters].max(axis=1)
+
+        # Points below threshold marked as uncertain (-2)
+        uncertain = confidence < self.confidence_threshold
+        final_labels[uncertain] = -2
+
+        return {
+            "labels": final_labels,
+            "confidence": confidence,
+            "n_confident": int((~uncertain).sum()),
+            "n_uncertain": int(uncertain.sum()),
+            "confidence_rate": round(float((~uncertain).mean()), 4),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# CROSS-DATASET STABILITY TESTER
+# ──────────────────────────────────────────────────────────────────
+
+class CrossDatasetStabilityTester:
+    """
+    Tests whether a clustering algorithm produces consistent results
+    on two related datasets (e.g. train / holdout, or augmented pairs).
+    Key question: 'Does this algorithm generalise, or is it overfit
+    to the exact training sample?'
+    """
+    def __init__(self, random_state: int = 42):
+        self.random_state = random_state
+
+    def test(self, algorithm_id: str,
+             X_a: np.ndarray, X_b: np.ndarray,
+             n_clusters: int) -> Dict[str, Any]:
+        from clustering_runner import SingleAlgorithmExecutor, RunnerConfig
+        from stability import LabelAgreementMetrics
+
+        config = RunnerConfig(n_clusters=n_clusters, timeout_seconds=120)
+        executor = SingleAlgorithmExecutor(config)
+        metrics  = LabelAgreementMetrics()
+
+        cr_a = executor.run(algorithm_id, X_a, {})
+        cr_b = executor.run(algorithm_id, X_b, {})
+
+        if not cr_a.succeeded or not cr_b.succeeded:
+            return {"status": "failed", "error": f"{cr_a.error_message} | {cr_b.error_message}"}
+
+        # Only compare on shared indices if sizes differ
+        n_min = min(len(cr_a.labels), len(cr_b.labels))
+        la, lb = cr_a.labels[:n_min], cr_b.labels[:n_min]
+
+        ari = metrics.ari(la, lb)
+        ami = metrics.ami(la, lb)
+        nmi = metrics.nmi(la, lb)
+        jac = metrics.mean_jaccard(la, lb)
+
+        ka = int(len(np.unique(la[la != -1])))
+        kb = int(len(np.unique(lb[lb != -1])))
+
+        return {
+            "algorithm_id": algorithm_id,
+            "ari": round(float(ari), 4),
+            "ami": round(float(ami), 4),
+            "nmi": round(float(nmi), 4),
+            "mean_jaccard": round(float(jac), 4),
+            "k_a": ka, "k_b": kb,
+            "k_agreement": ka == kb,
+            "is_stable_across_datasets": float(ari) >= 0.5,
+            "interpretation": (
+                f"ARI={ari:.3f} between datasets A (n={len(X_a)}) and B (n={len(X_b)}). "
+                + ("Stable generalisation." if ari >= 0.5
+                   else "Unstable — results differ significantly between datasets.")
+            ),
+            "status": "ok",
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# LABEL ENTROPY TRACKER
+# ──────────────────────────────────────────────────────────────────
+
+class LabelEntropyTracker:
+    """
+    Tracks how the entropy of cluster size distributions changes
+    across perturbation runs. High entropy variance = unstable cluster
+    sizes; low = stable cluster sizes even under perturbation.
+    """
+    @staticmethod
+    def entropy_series(runs: List[PerturbationRun]) -> Dict[str, Any]:
+        from scipy.stats import entropy as sp_entropy
+        from collections import Counter
+        entropies = []
+        k_vals    = []
+        for run in runs:
+            if not run.succeeded or len(run.labels) == 0:
+                continue
+            valid = run.labels[run.labels != -1]
+            if len(valid) == 0:
+                continue
+            counts = np.array(list(Counter(valid.tolist()).values()), dtype=float)
+            p = counts / counts.sum()
+            e = float(sp_entropy(p + 1e-12))
+            entropies.append(e)
+            k_vals.append(len(counts))
+
+        if not entropies:
+            return {}
+        return {
+            "mean_entropy": round(float(np.mean(entropies)), 4),
+            "std_entropy":  round(float(np.std(entropies)), 4),
+            "mean_k":       round(float(np.mean(k_vals)), 2),
+            "std_k":        round(float(np.std(k_vals)), 3),
+            "entropy_cv":   round(float(np.std(entropies) / (np.mean(entropies) + 1e-10)), 4),
+            "k_cv":         round(float(np.std(k_vals) / (np.mean(k_vals) + 1e-10)), 4),
+            "stable_k": float(np.std(k_vals)) < 1.5,
+            "interpretation": (
+                "Cluster count is stable across perturbations." if float(np.std(k_vals)) < 1.5
+                else f"Cluster count varies (std={np.std(k_vals):.1f}) — algorithm is k-sensitive."
+            ),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# INTER-RUN CONSISTENCY MATRIX
+# ──────────────────────────────────────────────────────────────────
+
+class InterRunConsistencyMatrix:
+    """
+    Computes ARI between every pair of perturbation runs for one algorithm.
+    Reveals: are all runs mutually consistent, or does the algorithm
+    find different solutions on different perturbations (multi-modal landscape)?
+    """
+    def __init__(self):
+        self._metrics = LabelAgreementMetrics()
+
+    def compute(self, runs: List[PerturbationRun],
+                max_runs: int = 20) -> Dict[str, Any]:
+        import pandas as pd
+        valid = [r for r in runs if r.succeeded and len(r.labels) > 0]
+        valid = valid[:max_runs]
+        n = len(valid)
+        if n < 2:
+            return {"matrix": None, "mean_pairwise_ari": None}
+
+        # Pad/trim all to same length
+        min_len = min(len(r.labels) for r in valid)
+        mat = np.zeros((n, n))
+        for i in range(n):
+            for j in range(n):
+                if i == j:
+                    mat[i, j] = 1.0
+                elif i < j:
+                    ari = self._metrics.ari(
+                        valid[i].labels[:min_len],
+                        valid[j].labels[:min_len])
+                    mat[i, j] = mat[j, i] = round(float(ari), 4)
+
+        run_names = [f"R{r.run_index}_{r.perturbation_type.value[:4]}" for r in valid]
+        df = pd.DataFrame(mat, index=run_names, columns=run_names)
+        upper_tri = mat[np.triu_indices(n, k=1)]
+        return {
+            "matrix": df,
+            "mean_pairwise_ari": round(float(upper_tri.mean()), 4),
+            "min_pairwise_ari":  round(float(upper_tri.min()), 4),
+            "std_pairwise_ari":  round(float(upper_tri.std()), 4),
+            "is_multimodal": float(upper_tri.std()) > 0.2,
+            "interpretation": (
+                "Algorithm consistently finds the same solution. (Unimodal landscape.)"
+                if float(upper_tri.std()) < 0.2
+                else "Algorithm finds different solutions on different perturbations. "
+                     "(Multi-modal landscape — use consensus to combine.)"
+            ),
+        }
+
+
+# ──────────────────────────────────────────────────────────────────
+# FEATURE IMPORTANCE UNDER PERTURBATION
+# ──────────────────────────────────────────────────────────────────
+
+class PerturbationFeatureImportance:
+    """
+    Identifies which features are most responsible for clustering stability.
+    Method: run feature dropout for each feature individually; features
+    whose removal causes the largest ARI drop are 'clustering-critical'.
+    """
+    def __init__(self, max_features: int = 20, random_state: int = 42):
+        self.max_features = max_features
+        self.random_state = random_state
+
+    def compute(self, algorithm_id: str,
+                X: np.ndarray,
+                reference_labels: np.ndarray,
+                feature_names: Optional[List[str]] = None,
+                n_clusters: int = 8) -> Dict[str, Any]:
+        from clustering_runner import SingleAlgorithmExecutor, RunnerConfig
+        config = RunnerConfig(n_clusters=n_clusters, timeout_seconds=60)
+        executor = SingleAlgorithmExecutor(config)
+        metrics  = LabelAgreementMetrics()
+
+        d = X.shape[1]
+        n_feats = min(d, self.max_features)
+        importances = {}
+        rng = np.random.default_rng(self.random_state)
+
+        for f in range(n_feats):
+            # Zero out feature f
+            X_drop = X.copy()
+            X_drop[:, f] = rng.normal(0, 1e-6, len(X))
+            cr = executor.run(algorithm_id, X_drop, {})
+            if cr.succeeded and len(cr.labels) == len(X):
+                ari = self._metrics_safe_ari(metrics, reference_labels, cr.labels)
+            else:
+                ari = 0.0
+            fname = feature_names[f] if feature_names and f < len(feature_names) else f"f{f}"
+            importances[fname] = round(1.0 - float(ari), 4)
+
+        # Normalise
+        vals = list(importances.values())
+        max_v = max(vals) if vals else 1.0
+        normalised = {k: round(v / max(max_v, 1e-10), 4) for k, v in importances.items()}
+        ranked = sorted(normalised.items(), key=lambda x: -x[1])
+
+        return {
+            "feature_importance": dict(ranked),
+            "top_features": [k for k, _ in ranked[:10]],
+            "raw_ari_drop": importances,
+            "most_critical": ranked[0][0] if ranked else None,
+            "least_critical": ranked[-1][0] if ranked else None,
+        }
+
+    @staticmethod
+    def _metrics_safe_ari(metrics, la, lb):
+        try:
+            return float(metrics.ari(la, lb))
+        except Exception:
+            return 0.0

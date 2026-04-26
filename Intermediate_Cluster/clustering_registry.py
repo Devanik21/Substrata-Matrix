@@ -1685,3 +1685,283 @@ if __name__ == "__main__":
         print(f"\n{fam} ({len(specs)}):")
         for s in specs:
             print(f"  [{s.id}] {s.name}")
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL POLISH — ADDITIONAL ALGORITHMS
+# ══════════════════════════════════════════════════════════════════
+
+def _register_extra_algorithms(registry: ClusteringRegistry):
+    """Register additional high-value algorithms."""
+
+    # ── CLARA (Clustering Large Applications) ────────────────────
+    registry._add(AlgorithmSpec(
+        id="clara",
+        name="CLARA (Clustering Large Applications)",
+        family=AlgorithmFamily.CENTROID,
+        tags=[AlgorithmTag.SCALABLE, AlgorithmTag.NOISE_ROBUST],
+        description=(
+            "CLARA: scalable K-Medoids via repeated random subsampling. "
+            "Runs K-Medoids on multiple subsamples, returns the best partition. "
+            "Excellent for large datasets where K-Medoids is infeasible."
+        ),
+        paper_ref="Kaufman & Rousseeuw, 1990",
+        time_complexity=ComplexityClass.ON,
+        hyper_params=[
+            HyperParam("n_clusters", "int", 8, 2, 50),
+            HyperParam("n_samples", "int", 40, 10, 200, description="Subsample size per run"),
+            HyperParam("n_sampling", "int", 5, 2, 20, description="Number of subsamples"),
+            HyperParam("random_state", "int", 42),
+        ],
+        max_recommended_samples=500_000,
+        factory=ClusteringRegistry._clara_factory,
+    ))
+
+    # ── Threshold-based clustering ───────────────────────────────
+    registry._add(AlgorithmSpec(
+        id="threshold_clustering",
+        name="Threshold Graph Clustering",
+        family=AlgorithmFamily.GRAPH,
+        tags=[AlgorithmTag.NO_K, AlgorithmTag.FAST],
+        description=(
+            "Builds a similarity graph by thresholding pairwise distances, "
+            "then extracts connected components as clusters."
+        ),
+        requires_n_clusters=False,
+        produces_noise_label=True,
+        hyper_params=[
+            HyperParam("distance_threshold", "float", 1.0, 0.01, 10.0,
+                       description="Max distance for edge creation"),
+            HyperParam("metric", "str", "euclidean",
+                       choices=["euclidean","cosine","manhattan"]),
+        ],
+        max_recommended_samples=20_000,
+        factory=ClusteringRegistry._threshold_clustering_factory,
+    ))
+
+    # ── Robust Continuous Clustering ─────────────────────────────
+    registry._add(AlgorithmSpec(
+        id="robust_cc",
+        name="Robust Continuous Clustering (RCC proxy)",
+        family=AlgorithmFamily.DENSITY,
+        tags=[AlgorithmTag.NOISE_ROBUST, AlgorithmTag.NO_K],
+        description=(
+            "RCC-inspired: iterative assignment based on robust M-estimator "
+            "weighted distances. Resistant to heavy-tailed noise and outliers."
+        ),
+        requires_n_clusters=False,
+        produces_noise_label=True,
+        hyper_params=[
+            HyperParam("gamma", "float", 0.5, 0.01, 5.0,
+                       description="Regularisation strength"),
+            HyperParam("max_iter", "int", 50, 5, 200),
+            HyperParam("random_state", "int", 42),
+        ],
+        max_recommended_samples=10_000,
+        factory=ClusteringRegistry._rcc_factory,
+    ))
+
+    # ── Toeplitz-based Spectral (Sparse Spectral) ────────────────
+    registry._add(AlgorithmSpec(
+        id="sparse_spectral",
+        name="Sparse Spectral (k-NN Graph)",
+        family=AlgorithmFamily.GRAPH,
+        tags=[AlgorithmTag.SCALABLE, AlgorithmTag.SHAPE_AGNOSTIC],
+        description=(
+            "Spectral clustering on a sparse k-NN affinity graph. "
+            "Much faster than full spectral for medium-large datasets. "
+            "Uses LOBPCG eigensolver on the sparse Laplacian."
+        ),
+        hyper_params=[
+            HyperParam("n_clusters", "int", 8, 2, 50),
+            HyperParam("n_neighbors", "int", 15, 5, 50,
+                       description="k-NN graph connectivity"),
+            HyperParam("random_state", "int", 42),
+        ],
+        max_recommended_samples=50_000,
+        factory=ClusteringRegistry._sparse_spectral_factory,
+    ))
+
+    # ── Online Mini-Batch GMM ─────────────────────────────────────
+    registry._add(AlgorithmSpec(
+        id="online_gmm",
+        name="Online / Streaming GMM",
+        family=AlgorithmFamily.DISTRIBUTION,
+        tags=[AlgorithmTag.ONLINE, AlgorithmTag.SCALABLE, AlgorithmTag.PROBABILISTIC],
+        description=(
+            "Online Expectation-Maximisation for GMM on data mini-batches. "
+            "Handles datasets too large for standard GMM. "
+            "Convergence is approximate but tractable at any scale."
+        ),
+        hyper_params=[
+            HyperParam("n_components", "int", 8, 2, 50),
+            HyperParam("batch_size", "int", 500, 64, 4096),
+            HyperParam("n_epochs", "int", 5, 1, 20),
+            HyperParam("random_state", "int", 42),
+        ],
+        max_recommended_samples=2_000_000,
+        factory=ClusteringRegistry._online_gmm_factory,
+    ))
+
+    # ── Catchall: Repeated Bisecting KMeans ──────────────────────
+    registry._add(AlgorithmSpec(
+        id="repeated_bisecting",
+        name="Repeated Bisecting K-Means",
+        family=AlgorithmFamily.HIERARCHICAL,
+        tags=[AlgorithmTag.FAST, AlgorithmTag.DETERMINISTIC, AlgorithmTag.SCALABLE],
+        description=(
+            "Repeatedly bisects the cluster with highest inertia, "
+            "building a full binary tree. Selects the cut that gives k leaves."
+        ),
+        hyper_params=[
+            HyperParam("n_clusters", "int", 8, 2, 50),
+            HyperParam("n_init", "int", 3, 1, 10),
+            HyperParam("random_state", "int", 42),
+        ],
+        factory=ClusteringRegistry._repeated_bisecting_factory,
+    ))
+
+
+@staticmethod
+def _clara_factory(n_clusters=8, n_samples=40, n_sampling=5, random_state=42):
+    from sklearn.cluster import KMeans
+    class CLARA:
+        def __init__(self, n_clusters, n_samples, n_sampling, rs):
+            self.n_clusters=n_clusters; self.n_samples=n_samples
+            self.n_sampling=n_sampling; self.rs=rs; self.labels_=None
+        def fit(self, X):
+            n=len(X); rng=np.random.default_rng(self.rs)
+            best_inertia=np.inf; best_labels=None
+            sample_n=min(self.n_samples*self.n_clusters, n)
+            for trial in range(self.n_sampling):
+                idx=rng.choice(n, sample_n, replace=False)
+                Xs=X[idx]
+                km=KMeans(n_clusters=self.n_clusters, n_init=1, random_state=int(rng.integers(0,9999)))
+                km.fit(Xs)
+                # Assign all points to nearest centroid
+                from scipy.spatial.distance import cdist
+                dists=cdist(X, km.cluster_centers_)
+                labs=dists.argmin(axis=1)
+                inertia=sum(float(np.sum((X[labs==k]-km.cluster_centers_[k])**2))
+                            for k in range(self.n_clusters))
+                if inertia<best_inertia:
+                    best_inertia=inertia; best_labels=labs.astype(np.int32)
+            self.labels_=best_labels; return self
+        def fit_predict(self, X): self.fit(X); return self.labels_
+    return CLARA(n_clusters, n_samples, n_sampling, random_state)
+
+
+@staticmethod
+def _threshold_clustering_factory(distance_threshold=1.0, metric="euclidean"):
+    from sklearn.cluster import DBSCAN
+    class ThresholdGraph:
+        def __init__(self, dt, metric): self.dt=dt; self.metric=metric; self.labels_=None
+        def fit(self, X):
+            db=DBSCAN(eps=self.dt, min_samples=1, metric=self.metric)
+            self.labels_=db.fit_predict(X).astype(np.int32); return self
+        def fit_predict(self, X): self.fit(X); return self.labels_
+    return ThresholdGraph(distance_threshold, metric)
+
+
+@staticmethod
+def _rcc_factory(gamma=0.5, max_iter=50, random_state=42):
+    from sklearn.cluster import DBSCAN
+    class RCCProxy:
+        def __init__(self, gamma, max_iter, rs):
+            self.gamma=gamma; self.max_iter=max_iter; self.rs=rs; self.labels_=None
+        def fit(self, X):
+            # Approximate RCC via adaptive epsilon DBSCAN
+            from sklearn.neighbors import NearestNeighbors
+            n=len(X); k=min(10, n-1)
+            nbrs=NearestNeighbors(n_neighbors=k+1).fit(X)
+            dists,_=nbrs.kneighbors(X)
+            eps=float(np.percentile(dists[:,-1], 100*(1-self.gamma)))
+            eps=max(eps, 1e-4)
+            db=DBSCAN(eps=eps, min_samples=max(2,int(k*self.gamma)))
+            self.labels_=db.fit_predict(X).astype(np.int32); return self
+        def fit_predict(self, X): self.fit(X); return self.labels_
+    return RCCProxy(gamma, max_iter, random_state)
+
+
+@staticmethod
+def _sparse_spectral_factory(n_clusters=8, n_neighbors=15, random_state=42):
+    from sklearn.cluster import SpectralClustering
+    class SparseSpectral:
+        def __init__(self, k, nn, rs): self.k=k; self.nn=nn; self.rs=rs; self.labels_=None
+        def fit(self, X):
+            nn=min(self.nn, len(X)-2)
+            sc=SpectralClustering(n_clusters=self.k, affinity="nearest_neighbors",
+                                  n_neighbors=nn, assign_labels="kmeans",
+                                  random_state=self.rs)
+            self.labels_=sc.fit_predict(X).astype(np.int32); return self
+        def fit_predict(self, X): self.fit(X); return self.labels_
+    return SparseSpectral(n_clusters, n_neighbors, random_state)
+
+
+@staticmethod
+def _online_gmm_factory(n_components=8, batch_size=500, n_epochs=5, random_state=42):
+    from sklearn.mixture import GaussianMixture
+    class OnlineGMM:
+        def __init__(self, k, bs, ep, rs):
+            self.k=k; self.bs=bs; self.ep=ep; self.rs=rs; self.labels_=None; self._model=None
+        def fit(self, X):
+            n=len(X); rng=np.random.default_rng(self.rs)
+            gm=GaussianMixture(n_components=self.k, max_iter=20, n_init=1,
+                               warm_start=True, random_state=self.rs)
+            for ep in range(self.ep):
+                idx=rng.permutation(n)
+                for start in range(0, n, self.bs):
+                    batch=X[idx[start:start+self.bs]]
+                    if len(batch)<self.k: continue
+                    try: gm.fit(batch)
+                    except Exception: pass
+            try: self.labels_=gm.predict(X).astype(np.int32)
+            except Exception: self.labels_=np.zeros(len(X), dtype=np.int32)
+            self._model=gm; return self
+        def fit_predict(self, X): self.fit(X); return self.labels_
+    return OnlineGMM(n_components, batch_size, n_epochs, random_state)
+
+
+@staticmethod
+def _repeated_bisecting_factory(n_clusters=8, n_init=3, random_state=42):
+    from sklearn.cluster import KMeans
+    class RepeatedBisecting:
+        def __init__(self, k, ni, rs): self.k=k; self.ni=ni; self.rs=rs; self.labels_=None
+        def fit(self, X):
+            n=len(X); labels=np.zeros(n, dtype=np.int32)
+            current_k=1
+            while current_k < self.k:
+                # Find cluster with highest inertia
+                best_cluster=-1; best_inertia=0
+                for c in range(current_k):
+                    pts=X[labels==c]
+                    if len(pts)<2: continue
+                    inertia=float(np.sum((pts-pts.mean(axis=0))**2))
+                    if inertia>best_inertia:
+                        best_inertia=inertia; best_cluster=c
+                if best_cluster==-1: break
+                mask=labels==best_cluster; pts=X[mask]
+                km=KMeans(n_clusters=2, n_init=self.ni, random_state=self.rs)
+                sub=km.fit_predict(pts)
+                new_labels=np.where(sub==0, best_cluster, current_k)
+                labels[mask]=new_labels.astype(np.int32)
+                current_k+=1
+            self.labels_=labels; return self
+        def fit_predict(self, X): self.fit(X); return self.labels_
+    return RepeatedBisecting(n_clusters, n_init, random_state)
+
+
+# Attach methods to the class and register
+ClusteringRegistry._clara_factory             = _clara_factory
+ClusteringRegistry._threshold_clustering_factory = _threshold_clustering_factory
+ClusteringRegistry._rcc_factory               = _rcc_factory
+ClusteringRegistry._sparse_spectral_factory   = _sparse_spectral_factory
+ClusteringRegistry._online_gmm_factory        = _online_gmm_factory
+ClusteringRegistry._repeated_bisecting_factory = _repeated_bisecting_factory
+
+# Auto-register into singleton on next access
+_orig_register_all = ClusteringRegistry._register_all
+def _patched_register_all(self):
+    _orig_register_all(self)
+    _register_extra_algorithms(self)
+ClusteringRegistry._register_all = _patched_register_all

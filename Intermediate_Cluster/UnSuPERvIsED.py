@@ -1380,9 +1380,12 @@ elif page == "🧬 Algorithm Arena":
                             for hp in spec.hyper_params]
                 st.dataframe(pd.DataFrame(hp_rows), use_container_width=True)
 
-            tag_map = {"fast":"fast", "scalable":"scale", "no_k_needed":"nok", "noise_robust":"noise", "probabilistic":"prob"}
+            _tag_cls_map = {
+                "fast":"fast","scalable":"scale","no_k_needed":"nok",
+                "noise_robust":"noise","probabilistic":"prob",
+            }
             tags_html = "".join(
-                f'<span class="algo-tag tag-{tag_map.get(t.value, "default")}">{t.value}</span>'
+                f'<span class="algo-tag tag-{_tag_cls_map.get(t.value, "default")}">{t.value}</span>'
                 for t in spec.tags
             )
             st.markdown(f"**Tags:** {tags_html}", unsafe_allow_html=True)

@@ -440,9 +440,9 @@ class MetricChartBuilder:
                 ],
                 showscale=True,
                 colorbar=dict(
-                    title="Score/100",
+                    # FIX: Modernised title dict syntax to eliminate titlefont error
+                    title=dict(text="Score/100", font=dict(color=Theme.TEXT_DIM)),
                     tickfont=dict(color=Theme.TEXT_DIM),
-                    titlefont=dict(color=Theme.TEXT_DIM),
                 ),
                 opacity=0.90,
             ),

@@ -1318,7 +1318,7 @@ class ClusteringRegistry:
         ))
 
     @staticmethod
-    def _fuzzy_cmeans_factory(n_clusters=8, fuzziness=2.0, error=0.005, max_iter=150):
+    def _fuzzy_cmeans_factory(n_clusters=8, fuzziness=2.0, error=0.005, max_iter=150, **kwargs):
         class FuzzyCMeans:
             def __init__(self, n_clusters, m, error, max_iter):
                 self.n_clusters = n_clusters
@@ -1362,7 +1362,7 @@ class ClusteringRegistry:
                            error=error, max_iter=max_iter)
 
     @staticmethod
-    def _possibilistic_cmeans_factory(n_clusters=8, fuzziness=2.0, max_iter=100):
+    def _possibilistic_cmeans_factory(n_clusters=8, fuzziness=2.0, max_iter=100, **kwargs):
         class PCM:
             def __init__(self, n_clusters, m, max_iter):
                 self.n_clusters = n_clusters

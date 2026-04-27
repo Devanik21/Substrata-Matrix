@@ -625,7 +625,7 @@ with st.sidebar:
         </div>
     </div>""", unsafe_allow_html=True)
 
-    st.session_state.page = st.radio(
+    st.session_state.page = st.selectbox(
         "Navigation", PAGES,
         index=PAGES.index(st.session_state.page),
         label_visibility="collapsed",
@@ -1419,10 +1419,9 @@ elif page == "⚡ Execution Engine":
 
     _sep()
 
-    exec_mode = st.radio(
+    exec_mode = st.selectbox(
         "Execution mode",
-        ["🔀 Adaptive (recommended)","⚡ Parallel","🔁 Sequential"],
-        horizontal=True,
+        ["🔀 Adaptive (recommended)", "⚡ Parallel", "🔁 Sequential"],
     )
     mode_map = {
         "🔀 Adaptive (recommended)":"adaptive",
@@ -3140,9 +3139,8 @@ def _render_whitening_panel():
         "critical for GMM, K-Means, and distance-sensitive algorithms on correlated data."
     )
 
-    method = st.radio("Whitening method",
-                       ["ZCA (preserves feature space)", "PCA (maximal decorrelation)"],
-                       horizontal=True)
+    method = st.selectbox("Whitening method",
+                           ["ZCA (preserves feature space)", "PCA (maximal decorrelation)"])
     eps = st.number_input("Epsilon (regularisation)", value=1e-5,
                            format="%.1e", min_value=1e-8, max_value=0.1)
 

@@ -2908,8 +2908,8 @@ if _has_results() and page not in ["🏠 Home", "📁 Data Ingestion"]:
             </div>
             <div style="font-size:.75rem; color:#666688; margin-top:.3rem; line-height:1.8;">
                 Score: <span style="color:#00ff88; font-weight:600;">{best.composite_score:.1f}</span>/100<br>
-                Sil: <span style="color:#9b59ff;">{sil:.4f if sil else 'N/A'}</span><br>
-                DB: <span style="color:#ff8c00;">{db:.4f if db else 'N/A'}</span><br>
+                Sil: <span style="color:#9b59ff;">{f"{sil:.4f}" if sil is not None else 'N/A'}</span><br>
+                DB: <span style="color:#ff8c00;">{f"{db:.4f}" if db is not None else 'N/A'}</span><br>
                 k: <span style="color:#ffd700;">{best.n_clusters}</span>
             </div>""", unsafe_allow_html=True)
 

@@ -560,7 +560,7 @@ class ClusteringRegistry:
                            choices=["auto", "ball_tree", "kd_tree", "brute"]),
             ],
             factory=lambda eps=0.5, min_samples=5, metric="euclidean",
-                           algorithm="auto": DBSCAN(
+                           algorithm="auto", **kwargs: DBSCAN(
                 eps=eps, min_samples=min_samples, metric=metric, algorithm=algorithm),
         ))
 
@@ -585,7 +585,7 @@ class ClusteringRegistry:
                            choices=["euclidean", "manhattan", "cosine"]),
             ],
             max_recommended_samples=50_000,
-            factory=lambda min_samples=5, xi=0.05, metric="euclidean": OPTICS(
+            factory=lambda min_samples=5, xi=0.05, metric="euclidean", **kwargs: OPTICS(
                 min_samples=min_samples, xi=xi, metric=metric, cluster_method="xi"),
         ))
 
@@ -613,7 +613,7 @@ class ClusteringRegistry:
                                choices=["euclidean", "manhattan"]),
                 ],
                 factory=lambda min_cluster_size=15, min_samples=5,
-                               cluster_selection_method="eom", metric="euclidean": (
+                               cluster_selection_method="eom", metric="euclidean", **kwargs: (
                     __import__("hdbscan").HDBSCAN(
                         min_cluster_size=min_cluster_size,
                         min_samples=min_samples,
@@ -635,7 +635,7 @@ class ClusteringRegistry:
                     HyperParam("min_cluster_size", "int", 15, 2, 200),
                     HyperParam("min_samples", "int", 5, 1, 50),
                 ],
-                factory=lambda min_cluster_size=15, min_samples=5: OPTICS(
+                factory=lambda min_cluster_size=15, min_samples=5, **kwargs: OPTICS(
                     min_samples=min_samples, cluster_method="xi"),
             ))
 
@@ -658,7 +658,8 @@ class ClusteringRegistry:
                            description="Use binning for faster initialisation"),
             ],
             max_recommended_samples=10_000,
-            factory=self._mean_shift_factory,
+            factory=lambda bandwidth=0.0, bin_seeding=True, **kwargs: self._mean_shift_factory(
+                bandwidth=bandwidth, bin_seeding=bin_seeding),
         ))
 
         # DENCLUE
@@ -678,7 +679,8 @@ class ClusteringRegistry:
                 HyperParam("threshold", "float", 0.001, 1e-6, 0.1),
             ],
             max_recommended_samples=5_000,
-            factory=self._denclue_factory,
+            factory=lambda bandwidth=0.5, threshold=0.001, **kwargs: self._denclue_factory(
+                bandwidth=bandwidth, threshold=threshold),
         ))
 
     @staticmethod

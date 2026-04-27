@@ -426,7 +426,7 @@ class ClusteringRegistry:
     # ── 2. HIERARCHICAL ──────────────────────────────────────────
 
     def _register_hierarchical(self):
-        from sklearn.cluster import AgglomerativeClustering, BIRCH
+        from sklearn.cluster import AgglomerativeClustering, Birch
 
         for linkage in ["ward", "complete", "average", "single"]:
             self._add(AlgorithmSpec(
@@ -476,7 +476,7 @@ class ClusteringRegistry:
             ],
             max_recommended_samples=2_000_000,
             factory=lambda n_clusters=8, threshold=0.5,
-                           branching_factor=50: BIRCH(
+                           branching_factor=50: Birch(
                 n_clusters=n_clusters, threshold=threshold,
                 branching_factor=branching_factor),
         ))

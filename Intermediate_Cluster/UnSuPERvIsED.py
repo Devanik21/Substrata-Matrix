@@ -581,7 +581,7 @@ def _gemini_query(prompt: str, context: str = "",
 def _render_ai_response(text: str):
     st.markdown(f"""
     <div class="ai-response">
-        <div class="ai-label">🤖 Gemini AI Insight</div>
+        <div class="ai-label"> Gemini AI Insight</div>
         {text}
     </div>""", unsafe_allow_html=True)
 
@@ -600,7 +600,7 @@ PAGES = [
     "🔬 Visualization Lab",
     "🧪 Stability Lab",
     "🤝 Consensus Forge",
-    "🤖 AI Oracle",
+    " AI Oracle",
     "🛠️ Advanced Tools",
 ]
 
@@ -690,8 +690,8 @@ if page == "🏠 Home":
                 st.session_state.page = "🧬 Algorithm Arena"
                 st.rerun()
         with c3:
-            if st.button("🤖 AI Oracle", use_container_width=True):
-                st.session_state.page = "🤖 AI Oracle"
+            if st.button(" AI Oracle", use_container_width=True):
+                st.session_state.page = " AI Oracle"
                 st.rerun()
 
     with col_anim:
@@ -750,7 +750,7 @@ if page == "🏠 Home":
         ("🧪","Stability Analysis","Bootstrap · Gaussian noise · Laplacian noise · feature dropout · subset sampling — full robustness profiling."),
         ("🤝","8 Consensus Methods","EAC (3 linkages) · CSPA · Voting · Weighted Voting · Meta-Clustering · Bayesian · Hybrid. Co-association matrix."),
         ("🔭","Multi-Embedding Vis","PCA · UMAP · t-SNE · ISOMAP · LLE — 2D and 3D projections, pair scatter, silhouette bars, centroid heatmaps."),
-        ("🤖","Gemini AI Insights","Context-aware AI analysis at every stage: data profiling, algorithm selection, results interpretation, recommendations."),
+        ("","Gemini AI Insights","Context-aware AI analysis at every stage: data profiling, algorithm selection, results interpretation, recommendations."),
         ("📊","Pairwise ARI Matrix","Algorithm agreement heatmap — see which algorithms agree and which explore different structure."),
         ("🎯","k-Sweep Analysis","Automated elbow analysis across k=2..N for any algorithm. Silhouette, DB, CH curves. Optimal-k detection."),
         ("💾","Full Export Suite","Labels · metrics · co-association matrix · stability reports — CSV, JSON, and raw numpy download."),
@@ -1284,7 +1284,7 @@ elif page == "🧬 Algorithm Arena":
                                       "birch","dbscan","hdbscan","optics",
                                       "gmm_full","gmm_diag","spectral_kmeans",
                                       "affinity_propagation","fuzzy_cmeans","autoencoder_kmeans"],
-            "🤖 All Algorithms": registry.ids(),
+            " All Algorithms": registry.ids(),
         }
         for (pname, pids), col in zip(presets.items(), preset_cols):
             with col:
@@ -2134,8 +2134,8 @@ elif page == "🤝 Consensus Forge":
 # ▓▓  PAGE 9 · AI ORACLE
 # ─────────────────────────────────────────────────────────────────
 
-elif page == "🤖 AI Oracle":
-    _section("🤖 AI Oracle — Gemini Intelligence")
+elif page == " AI Oracle":
+    _section(" AI Oracle — Gemini Intelligence")
 
     tab_insights, tab_chat, tab_recommend, tab_explain = st.tabs([
         "💡 Auto Insights", "💬 Free Chat", "🎯 Recommendations", "📐 Deep Explain"
@@ -2211,7 +2211,7 @@ elif page == "🤖 AI Oracle":
                                 "How should the analyst interpret and validate the final clusters?")
 
                 if prompt:
-                    with st.spinner("🤖 Querying Gemini..."):
+                    with st.spinner(" Querying Gemini..."):
                         response = _gemini_query(prompt, context)
                     _render_ai_response(response)
                     st.session_state.gemini_history.append(
@@ -2256,7 +2256,7 @@ elif page == "🤖 AI Oracle":
                     if best:
                         ctx_parts.append(f"Best algorithm: {best.algorithm_name} (score={best.composite_score:.1f})")
                 ctx = ". ".join(ctx_parts)
-            with st.spinner("🤖 Thinking..."):
+            with st.spinner(" Thinking..."):
                 response = _gemini_query(user_q, ctx)
             _render_ai_response(response)
             st.session_state.gemini_history.append(
@@ -2294,7 +2294,7 @@ elif page == "🤖 AI Oracle":
                 f"Give top 5 specific algorithms with: (1) algorithm name, "
                 f"(2) why it's suitable, (3) key parameters to tune, (4) expected limitations."
             )
-            with st.spinner("🤖 Generating recommendations..."):
+            with st.spinner(" Generating recommendations..."):
                 response = _gemini_query(prompt)
             _render_ai_response(response)
 
@@ -2321,7 +2321,7 @@ elif page == "🤖 AI Oracle":
             prompt = (f"Give a deep, rigorous explanation of: '{q}'. "
                        f"Include mathematical intuition where appropriate, "
                        f"practical implications, and concrete examples.")
-            with st.spinner("🤖 Generating explanation..."):
+            with st.spinner(" Generating explanation..."):
                 resp = _gemini_query(prompt)
             _render_ai_response(resp)
 
@@ -3413,7 +3413,7 @@ def _render_cluster_profiles_panel():
 
         # AI cluster naming
         _sep()
-        if st.button("🤖 AI: Name All Clusters", use_container_width=True):
+        if st.button(" AI: Name All Clusters", use_container_width=True):
             context = "\n".join([
                 f"Cluster {cid}: size={p['size']}, "
                 f"top features: {[s['feature'] + '(' + s['direction'] + ')' for s in p['feature_signature'][:3]]}"
@@ -3422,7 +3422,7 @@ def _render_cluster_profiles_panel():
             prompt = ("Given these cluster descriptions, suggest a memorable, "
                        "domain-agnostic 2-3 word label for each cluster that a "
                        "data scientist could use in a report. Format: 'Cluster N: Label'")
-            with st.spinner("🤖 Naming clusters..."):
+            with st.spinner(" Naming clusters..."):
                 resp = _gemini_query(prompt, context)
             _render_ai_response(resp)
 

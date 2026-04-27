@@ -682,7 +682,7 @@ if page == "🏠 Home":
         st.markdown("")
         c1, c2, c3 = st.columns(3)
         with c1:
-            if st.button("🚀 Quick Start →", type="primary", use_container_width=True):
+            if st.button(" Quick Start →", type="primary", use_container_width=True):
                 st.session_state.page = "📁 Data Ingestion"
                 st.rerun()
         with c2:
@@ -1432,7 +1432,7 @@ elif page == "⚡ Execution Engine":
     _sep()
     col_run, col_eval, _ = st.columns([1,1,2])
     with col_run:
-        do_run = st.button("🚀 Launch Clustering", type="primary", use_container_width=True)
+        do_run = st.button(" Launch Clustering", type="primary", use_container_width=True)
     with col_eval:
         do_eval_only = st.button("📊 Re-Evaluate (existing results)", use_container_width=True)
 

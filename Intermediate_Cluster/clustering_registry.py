@@ -425,6 +425,8 @@ class ClusteringRegistry:
 
     # ── 2. HIERARCHICAL ──────────────────────────────────────────
 
+    # ── 2. HIERARCHICAL ──────────────────────────────────────────
+
     def _register_hierarchical(self):
         from sklearn.cluster import AgglomerativeClustering, Birch
 
@@ -450,10 +452,10 @@ class ClusteringRegistry:
                                "euclidean" if linkage == "ward" else "euclidean",
                                choices=["euclidean", "l1", "l2", "manhattan", "cosine"]),
                 ],
-                factory=lambda n_clusters=8, linkage=linkage, metric="euclidean": (
+                factory=lambda n_clusters=8, l=linkage, metric="euclidean", **kwargs: (
                     AgglomerativeClustering(
-                        n_clusters=n_clusters, linkage=linkage,
-                        metric="euclidean" if linkage == "ward" else metric)
+                        n_clusters=n_clusters, linkage=l,
+                        metric="euclidean" if l == "ward" else metric)
                 ),
             ))
 
@@ -476,7 +478,7 @@ class ClusteringRegistry:
             ],
             max_recommended_samples=2_000_000,
             factory=lambda n_clusters=8, threshold=0.5,
-                           branching_factor=50: Birch(
+                           branching_factor=50, **kwargs: Birch(
                 n_clusters=n_clusters, threshold=threshold,
                 branching_factor=branching_factor),
         ))

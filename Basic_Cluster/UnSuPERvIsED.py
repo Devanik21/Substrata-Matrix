@@ -208,14 +208,34 @@ div[data-testid="stMetric"] [data-testid="stMetricValue"] {
     transform: translateY(-1px) !important;
 }
 
-.stSelectbox > div > div,
-.stMultiSelect > div > div,
+/* Sidebar collapse/expand button — let Streamlit's native chevron render cleanly */
+button[data-testid="collapsedControl"],
+button[kind="header"] {
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-secondary) !important;
+}
+button[data-testid="collapsedControl"] svg,
+button[kind="header"] svg {
+    fill: var(--text-secondary) !important;
+}
+
+/* Inputs — target precisely to avoid clashing with Streamlit's native dropdown chevron */
 .stNumberInput > div > div > input,
 .stTextInput > div > div > input {
     background: var(--bg-card) !important;
     color: var(--text-primary) !important;
     border: 1px solid var(--border) !important;
     border-radius: var(--radius-sm) !important;
+}
+
+/* Selectbox / MultiSelect: style only the outer wrapper, don't touch inner value+chevron layout */
+.stSelectbox [data-baseweb="select"] > div:first-child,
+.stMultiSelect [data-baseweb="select"] > div:first-child {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-sm) !important;
+    color: var(--text-primary) !important;
 }
 
 .stSlider > div > div > div {

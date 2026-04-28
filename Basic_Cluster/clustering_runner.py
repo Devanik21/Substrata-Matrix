@@ -1,121 +1,149 @@
 """
-clustering_runner.py — ClusterX Parallel Clustering Execution Engine
-=====================================================================
-Handles: timeout-safe execution, parallel batch runs, hyperparameter sweeps,
-         elbow analysis, result caching, and orchestration layer.
-Author: ClusterX Intelligence Lab
+clustering_runner.py — Substrata-Matrix Execution Engine Module
+
+Orchestrates sequential and parallel execution of clustering algorithms
+with timeout isolation, error handling, caching, and adaptive
+parameter tuning per dataset characteristics.
 """
 
 from __future__ import annotations
 
 import time
-import hashlib
-import pickle
-import threading
 import warnings
 import logging
+import hashlib
+import pickle
 import traceback
+import functools
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from enum import Enum
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeout
 
 import numpy as np
-import pandas as pd
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
-
-from clustering_registry import (
-    REGISTRY, AlgorithmRegistry, AlgorithmMeta, AlgorithmResult,
-    AlgorithmFamily, ParameterType
-)
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
 
 
 # ──────────────────────────────────────────────────────────────────
-# ENUMERATIONS & DATA STRUCTURES
+# ENUMERATIONS
 # ──────────────────────────────────────────────────────────────────
 
-class RunMode(str, Enum):
-    SINGLE    = "single"
-    BATCH     = "batch"
-    SWEEP     = "sweep"
-    AUTO      = "auto"
-
-
 class RunStatus(str, Enum):
-    PENDING   = "pending"
-    RUNNING   = "running"
-    SUCCESS   = "success"
-    FAILED    = "failed"
-    TIMEOUT   = "timeout"
-    SKIPPED   = "skipped"
+    SUCCESS    = "success"
+    FAILED     = "failed"
+    TIMEOUT    = "timeout"
+    SKIPPED    = "skipped"
+    CACHED     = "cached"
 
 
-@dataclass
-class RunConfig:
-    """Configuration for a clustering run."""
-    algorithms: List[str] = field(default_factory=lambda: ["kmeans"])
-    params_override: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    n_clusters: int = 3
-    k_range: Optional[Tuple[int, int]] = None
-    timeout_seconds: int = 120
-    n_jobs: int = -1
-    random_state: int = 42
-    enable_cache: bool = True
-    cache_dir: str = ".clusterx_cache"
-    sweep_mode: bool = False
-    sweep_metric: str = "silhouette"
-    progress_callback: Optional[Callable[[str, float], None]] = None
-    max_retries: int = 1
-    verbose: bool = True
+class ExecutionMode(str, Enum):
+    SEQUENTIAL = "sequential"
+    PARALLEL   = "parallel"
+    ADAPTIVE   = "adaptive"     # Auto-selects based on dataset size
 
+
+# ──────────────────────────────────────────────────────────────────
+# DATA STRUCTURES
+# ──────────────────────────────────────────────────────────────────
 
 @dataclass
-class SingleRunResult:
-    """Result from running one algorithm with one parameter set."""
+class ClusteringResult:
+    algorithm_id: str
     algorithm_name: str
-    display_name: str
+    algorithm_family: str
     labels: np.ndarray
-    n_clusters_found: int
-    n_noise: int
-    params_used: Dict[str, Any]
-    fit_time_seconds: float
     status: RunStatus
+    runtime_seconds: float
+    n_clusters_found: int
+    n_noise_points: int
+    noise_ratio: float
+    params_used: Dict[str, Any]
     error_message: Optional[str] = None
     model: Optional[Any] = None
-    centers: Optional[np.ndarray] = None
-    probabilities: Optional[np.ndarray] = None
-    inertia: Optional[float] = None
+    soft_labels: Optional[np.ndarray] = None   # Probabilistic memberships
+    extra_info: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "algorithm_id": self.algorithm_id,
+            "algorithm_name": self.algorithm_name,
+            "algorithm_family": self.algorithm_family,
+            "status": self.status.value,
+            "runtime_seconds": round(self.runtime_seconds, 4),
+            "n_clusters_found": self.n_clusters_found,
+            "n_noise_points": self.n_noise_points,
+            "noise_ratio": round(self.noise_ratio, 4),
+            "params_used": self.params_used,
+            "error_message": self.error_message,
+        }
+
+    @property
+    def succeeded(self) -> bool:
+        return self.status in (RunStatus.SUCCESS, RunStatus.CACHED)
+
+    @property
+    def has_noise(self) -> bool:
+        return self.n_noise_points > 0
 
 
 @dataclass
-class SweepPoint:
-    """One point in a hyperparameter sweep."""
-    k: int
-    algorithm: str
-    params: Dict[str, Any]
-    labels: np.ndarray
-    n_clusters_found: int
-    metric_value: float
-    metric_name: str
-    fit_time: float
+class RunnerConfig:
+    n_clusters: int = 8
+    execution_mode: ExecutionMode = ExecutionMode.ADAPTIVE
+    max_workers: int = 4
+    timeout_seconds: int = 120
+    use_cache: bool = True
+    progress_callback: Optional[Callable[[str, int, int], None]] = None
+    param_overrides: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    skip_slow_on_large: bool = True
+    large_dataset_threshold: int = 20_000
+    very_large_threshold: int = 100_000
+    random_state: int = 42
+    verbose: bool = False
 
 
 @dataclass
-class BatchResult:
-    """Results from running multiple algorithms."""
-    results: List[SingleRunResult]
-    sweep_points: List[SweepPoint]
-    best_algorithm: Optional[str]
-    best_score: float
-    total_time_seconds: float
-    n_algorithms_run: int
-    n_algorithms_failed: int
-    config: RunConfig
+class BatchRunResult:
+    results: Dict[str, ClusteringResult]
+    total_runtime: float
+    n_success: int
+    n_failed: int
+    n_timeout: int
+    n_skipped: int
+    n_cached: int
+    algorithm_ids: List[str]
+    dataset_shape: Tuple[int, int]
+    run_config: RunnerConfig
+    cache_hit_rate: float
+
+    def successful(self) -> Dict[str, ClusteringResult]:
+        return {k: v for k, v in self.results.items() if v.succeeded}
+
+    def failed(self) -> Dict[str, ClusteringResult]:
+        return {k: v for k, v in self.results.items()
+                if v.status == RunStatus.FAILED}
+
+    def sorted_by_speed(self) -> List[ClusteringResult]:
+        return sorted(
+            [r for r in self.results.values() if r.succeeded],
+            key=lambda r: r.runtime_seconds
+        )
+
+    def summary(self) -> Dict[str, Any]:
+        return {
+            "total_algorithms_run": len(self.algorithm_ids),
+            "n_success": self.n_success,
+            "n_failed": self.n_failed,
+            "n_timeout": self.n_timeout,
+            "n_skipped": self.n_skipped,
+            "n_cached": self.n_cached,
+            "cache_hit_rate_pct": round(self.cache_hit_rate * 100, 1),
+            "total_runtime_s": round(self.total_runtime, 2),
+            "dataset_shape": self.dataset_shape,
+        }
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -123,1053 +151,1217 @@ class BatchResult:
 # ──────────────────────────────────────────────────────────────────
 
 class ResultCache:
-    """MD5-keyed disk cache for clustering results."""
+    """Thread-safe in-memory LRU cache for clustering results."""
 
-    def __init__(self, cache_dir: str = ".clusterx_cache"):
-        self.cache_dir = Path(cache_dir)
-        self._memory: Dict[str, Any] = {}
+    def __init__(self, max_entries: int = 200):
+        self._store: Dict[str, ClusteringResult] = {}
+        self._access_order: List[str] = []
+        self._max_entries = max_entries
+        self._lock = threading.Lock()
+        self._hits = 0
+        self._misses = 0
 
-    def _make_key(self, algo_name: str, params: Dict, data_hash: str) -> str:
-        payload = f"{algo_name}|{sorted(params.items())}|{data_hash}"
-        return hashlib.md5(payload.encode()).hexdigest()[:20]
+    def _make_key(self, algorithm_id: str, X: np.ndarray,
+                  params: Dict[str, Any]) -> str:
+        X_hash = hashlib.md5(X.data.tobytes()).hexdigest()[:12]
+        params_str = str(sorted(params.items()))
+        params_hash = hashlib.md5(params_str.encode()).hexdigest()[:8]
+        return f"{algorithm_id}_{X_hash}_{params_hash}"
 
-    def get(self, algo_name: str, params: Dict, data_hash: str) -> Optional[SingleRunResult]:
-        key = self._make_key(algo_name, params, data_hash)
-        if key in self._memory:
-            logger.debug(f"Cache HIT (memory): {algo_name}")
-            return self._memory[key]
-        cache_file = self.cache_dir / f"{key}.pkl"
-        if cache_file.exists():
-            try:
-                with open(cache_file, "rb") as f:
-                    result = pickle.load(f)
-                self._memory[key] = result
-                logger.debug(f"Cache HIT (disk): {algo_name}")
+    def get(self, algorithm_id: str, X: np.ndarray,
+            params: Dict[str, Any]) -> Optional[ClusteringResult]:
+        key = self._make_key(algorithm_id, X, params)
+        with self._lock:
+            if key in self._store:
+                self._hits += 1
+                self._access_order.remove(key)
+                self._access_order.append(key)
+                result = self._store[key]
+                result.status = RunStatus.CACHED
                 return result
-            except Exception:
-                pass
-        return None
+            self._misses += 1
+            return None
 
-    def put(self, algo_name: str, params: Dict, data_hash: str, result: SingleRunResult):
-        key = self._make_key(algo_name, params, data_hash)
-        self._memory[key] = result
-        try:
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-            cache_file = self.cache_dir / f"{key}.pkl"
-            with open(cache_file, "wb") as f:
-                pickle.dump(result, f)
-        except Exception as e:
-            logger.warning(f"Cache write failed: {e}")
+    def set(self, algorithm_id: str, X: np.ndarray,
+            params: Dict[str, Any], result: ClusteringResult):
+        key = self._make_key(algorithm_id, X, params)
+        with self._lock:
+            if len(self._store) >= self._max_entries:
+                oldest = self._access_order.pop(0)
+                del self._store[oldest]
+            self._store[key] = result
+            self._access_order.append(key)
 
     def clear(self):
-        self._memory.clear()
-        if self.cache_dir.exists():
-            for f in self.cache_dir.glob("*.pkl"):
-                try:
-                    f.unlink()
-                except Exception:
-                    pass
+        with self._lock:
+            self._store.clear()
+            self._access_order.clear()
+            self._hits = 0
+            self._misses = 0
 
+    @property
+    def hit_rate(self) -> float:
+        total = self._hits + self._misses
+        return self._hits / max(total, 1)
+
+    @property
     def size(self) -> int:
-        return len(self._memory)
+        return len(self._store)
+
+    @property
+    def stats(self) -> Dict[str, Any]:
+        return {
+            "size": self.size,
+            "hits": self._hits,
+            "misses": self._misses,
+            "hit_rate": round(self.hit_rate, 3),
+        }
 
 
 # ──────────────────────────────────────────────────────────────────
-# TIMEOUT RUNNER
+# ADAPTIVE PARAMETER TUNER
 # ──────────────────────────────────────────────────────────────────
 
-class TimeoutRunner:
-    """Runs a clustering algorithm with wall-clock timeout."""
+class AdaptiveParameterTuner:
+    """
+    Adjusts algorithm hyper-parameters based on dataset characteristics
+    to prevent failures and improve result quality.
+    """
 
-    def __init__(self, timeout_seconds: int = 120):
-        self.timeout = timeout_seconds
+    def __init__(self, n_clusters: int, random_state: int = 42):
+        self.n_clusters = n_clusters
+        self.random_state = random_state
 
-    def run(self, model: Any, X: np.ndarray, algo_name: str,
-            params: Dict[str, Any]) -> SingleRunResult:
-        result_holder: Dict[str, Any] = {"result": None, "error": None}
-        display_name = algo_name
+    def tune(self, algorithm_id: str, params: Dict[str, Any],
+             X: np.ndarray) -> Dict[str, Any]:
+        n, d = X.shape
+        params = params.copy()
+        params["random_state"] = self.random_state
 
-        meta = REGISTRY.get(algo_name)
-        if meta:
-            display_name = meta.display_name
+        # Universal: cap n_clusters to valid range
+        for k in ("n_clusters", "n_components"):
+            if k in params:
+                params[k] = max(2, min(int(params[k]), n - 1, 50))
 
-        def _execute():
+        # DBSCAN: auto-estimate eps from kNN distance
+        if algorithm_id == "dbscan" and params.get("eps", 0.5) == 0.5:
+            params["eps"] = self._estimate_dbscan_eps(X, params.get("min_samples", 5))
+
+        # Spectral: cap samples
+        if "spectral" in algorithm_id and n > 15_000:
+            params["n_clusters"] = params.get("n_clusters", self.n_clusters)
+
+        # Affinity Propagation: scale preference with data
+        if algorithm_id == "affinity_propagation":
+            if n > 3000:
+                params["preference"] = -200.0  # More negative → fewer clusters
+
+        # Mean Shift bandwidth
+        if algorithm_id == "mean_shift":
+            if params.get("bandwidth", 0.0) == 0.0:
+                params["bandwidth"] = 0.0  # Will be auto-estimated in factory
+
+        # GMM: cap n_init for speed
+        if "gmm" in algorithm_id and n > 50_000:
+            params["n_init"] = 1
+            params["max_iter"] = 100
+
+        # BIRCH: smaller threshold for more clusters
+        if algorithm_id == "birch" and d > 50:
+            params["threshold"] = min(params.get("threshold", 0.5), 1.0)
+
+        # KNN imputer neighbors
+        if "knn" in algorithm_id:
+            params["n_neighbors"] = max(3, min(params.get("n_neighbors", 5), n // 10))
+
+        # SOM: reduce grid for speed
+        if algorithm_id == "som_clustering" and n > 10_000:
+            params["epochs"] = min(params.get("epochs", 100), 50)
+
+        # Autoencoder: reduce epochs for speed
+        if algorithm_id == "autoencoder_kmeans" and n > 20_000:
+            params["epochs"] = min(params.get("epochs", 30), 15)
+
+        return params
+
+    def _estimate_dbscan_eps(self, X: np.ndarray, min_samples: int) -> float:
+        """Estimate DBSCAN eps via the k-distance graph elbow method."""
+        try:
+            from sklearn.neighbors import NearestNeighbors
+            k = min(min_samples, len(X) - 1)
+            sample = X if len(X) <= 2000 else X[
+                np.random.default_rng(42).choice(len(X), 2000, replace=False)]
+            nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree")
+            nbrs.fit(sample)
+            distances, _ = nbrs.kneighbors(sample)
+            k_distances = np.sort(distances[:, -1])[::-1]
+            # Find elbow via max second derivative
+            diffs2 = np.diff(np.diff(k_distances))
+            if len(diffs2) > 0:
+                elbow_idx = int(np.argmax(diffs2))
+                eps = float(k_distances[elbow_idx])
+            else:
+                eps = float(np.percentile(k_distances, 10))
+            return max(eps, 0.05)
+        except Exception:
+            return 0.5
+
+
+# ──────────────────────────────────────────────────────────────────
+# SPEED PROFILER
+# ──────────────────────────────────────────────────────────────────
+
+class SpeedProfiler:
+    """Tracks per-algorithm runtime history for adaptive scheduling."""
+
+    def __init__(self):
+        self._history: Dict[str, List[float]] = {}
+
+    def record(self, algorithm_id: str, runtime: float):
+        self._history.setdefault(algorithm_id, []).append(runtime)
+
+    def expected_runtime(self, algorithm_id: str) -> Optional[float]:
+        times = self._history.get(algorithm_id, [])
+        return float(np.mean(times)) if times else None
+
+    def slowest_algorithms(self, n: int = 5) -> List[Tuple[str, float]]:
+        avgs = {k: float(np.mean(v)) for k, v in self._history.items()}
+        return sorted(avgs.items(), key=lambda x: -x[1])[:n]
+
+
+# ──────────────────────────────────────────────────────────────────
+# SINGLE-ALGORITHM EXECUTOR
+# ──────────────────────────────────────────────────────────────────
+
+class SingleAlgorithmExecutor:
+    """Executes one algorithm with full error isolation and timing."""
+
+    def __init__(self, config: RunnerConfig):
+        self.config = config
+        self._tuner = AdaptiveParameterTuner(
+            n_clusters=config.n_clusters,
+            random_state=config.random_state
+        )
+
+    def run(self, algorithm_id: str, X: np.ndarray,
+            param_overrides: Optional[Dict[str, Any]] = None) -> ClusteringResult:
+        from clustering_registry import get_registry, AlgorithmSpec
+        registry = get_registry()
+
+        try:
+            spec = registry.get(algorithm_id)
+        except KeyError as e:
+            return self._make_error_result(
+                algorithm_id, str(e), runtime=0.0,
+                family="unknown", name=algorithm_id, params={}
+            )
+
+        # Build params
+        params = spec.default_params()
+        if "n_clusters" in params:
+            params["n_clusters"] = self.config.n_clusters
+        if "n_components" in params and not spec.requires_n_clusters:
+            pass  # Leave as default for non-k algorithms
+        elif "n_components" in params:
+            params["n_components"] = self.config.n_clusters
+
+        if param_overrides:
+            params.update(param_overrides)
+
+        # Adaptive tuning
+        params = self._tuner.tune(algorithm_id, params, X)
+
+        t_start = time.perf_counter()
+        try:
+            model = spec.factory(**params)
+            labels = self._fit_and_extract(model, X, spec)
+            runtime = time.perf_counter() - t_start
+            return self._make_success_result(
+                spec, labels, model, params, runtime
+            )
+        except MemoryError:
+            runtime = time.perf_counter() - t_start
+            return self._make_error_result(
+                algorithm_id, "MemoryError: dataset too large", runtime,
+                spec.family.value, spec.name, params
+            )
+        except Exception as exc:
+            runtime = time.perf_counter() - t_start
+            tb = traceback.format_exc()
+            logger.debug(f"[{algorithm_id}] Failed: {exc}\n{tb}")
+            return self._make_error_result(
+                algorithm_id, f"{type(exc).__name__}: {exc}", runtime,
+                spec.family.value, spec.name, params
+            )
+
+    def _fit_and_extract(self, model, X: np.ndarray, spec) -> np.ndarray:
+        """Calls fit_predict or fit+labels_ uniformly."""
+        if hasattr(model, "fit_predict"):
+            labels = model.fit_predict(X)
+        elif hasattr(model, "fit"):
+            model.fit(X)
+            if hasattr(model, "labels_"):
+                labels = model.labels_
+            elif hasattr(model, "predict"):
+                labels = model.predict(X)
+            else:
+                raise AttributeError("Model has no labels_ or predict method")
+        else:
+            raise AttributeError("Model has no fit or fit_predict method")
+
+        labels = np.asarray(labels, dtype=np.int32)
+
+        # Validate
+        if len(labels) != len(X):
+            raise ValueError(
+                f"Label count mismatch: got {len(labels)}, expected {len(X)}"
+            )
+        return labels
+
+    @staticmethod
+    def _make_success_result(spec, labels: np.ndarray, model: Any,
+                              params: Dict[str, Any],
+                              runtime: float) -> ClusteringResult:
+        valid_labels = labels[labels != -1]
+        n_clusters = int(len(np.unique(valid_labels))) if len(valid_labels) > 0 else 0
+        n_noise = int((labels == -1).sum())
+        noise_ratio = n_noise / max(len(labels), 1)
+
+        # Extract soft labels if available
+        soft_labels = None
+        if hasattr(model, "predict_proba"):
             try:
-                t0 = time.perf_counter()
-                if hasattr(model, "fit_predict"):
-                    labels = model.fit_predict(X)
-                elif hasattr(model, "fit"):
-                    model.fit(X)
-                    if hasattr(model, "labels_"):
-                        labels = model.labels_
-                    elif hasattr(model, "predict"):
-                        labels = model.predict(X)
-                    else:
-                        labels = np.zeros(len(X), dtype=int)
-                else:
-                    raise ValueError(f"Model {algo_name} has no fit/fit_predict")
-                elapsed = time.perf_counter() - t0
+                soft_labels = model.predict_proba(None)  # Already fitted
+            except Exception:
+                pass
+        if hasattr(model, "membership_") and model.membership_ is not None:
+            soft_labels = model.membership_
 
-                labels = np.asarray(labels, dtype=int)
-                n_clusters = len(set(labels) - {-1})
-                n_noise = int((labels == -1).sum())
-                centers = getattr(model, "cluster_centers_", None)
-                if centers is None:
-                    centers = getattr(model, "centers_", None)
-                probabilities = None
-                if hasattr(model, "predict_proba"):
-                    try:
-                        probabilities = model.predict_proba(X)
-                    except Exception:
-                        pass
-                elif hasattr(model, "membership_"):
-                    probabilities = model.membership_
-                inertia = getattr(model, "inertia_", None)
+        return ClusteringResult(
+            algorithm_id=spec.id,
+            algorithm_name=spec.name,
+            algorithm_family=spec.family.value,
+            labels=labels,
+            status=RunStatus.SUCCESS,
+            runtime_seconds=runtime,
+            n_clusters_found=n_clusters,
+            n_noise_points=n_noise,
+            noise_ratio=noise_ratio,
+            params_used=params,
+            model=model,
+            soft_labels=soft_labels,
+        )
 
-                result_holder["result"] = SingleRunResult(
-                    algorithm_name=algo_name, display_name=display_name,
-                    labels=labels, n_clusters_found=n_clusters, n_noise=n_noise,
-                    params_used=params, fit_time_seconds=round(elapsed, 4),
-                    status=RunStatus.SUCCESS, model=model,
-                    centers=centers, probabilities=probabilities, inertia=inertia,
+    @staticmethod
+    def _make_error_result(algorithm_id: str, error_msg: str, runtime: float,
+                            family: str, name: str,
+                            params: Dict[str, Any]) -> ClusteringResult:
+        return ClusteringResult(
+            algorithm_id=algorithm_id,
+            algorithm_name=name,
+            algorithm_family=family,
+            labels=np.array([], dtype=np.int32),
+            status=RunStatus.FAILED,
+            runtime_seconds=runtime,
+            n_clusters_found=0,
+            n_noise_points=0,
+            noise_ratio=0.0,
+            params_used=params,
+            error_message=error_msg,
+        )
+
+
+# ──────────────────────────────────────────────────────────────────
+# DATASET SIZE CLASSIFIER
+# ──────────────────────────────────────────────────────────────────
+
+class DatasetSizeClass(str, Enum):
+    TINY   = "tiny"      # < 500
+    SMALL  = "small"     # 500 – 5000
+    MEDIUM = "medium"    # 5000 – 20000
+    LARGE  = "large"     # 20000 – 100000
+    XLARGE = "xlarge"    # > 100000
+
+
+def classify_dataset(n: int, d: int) -> DatasetSizeClass:
+    if n < 500:
+        return DatasetSizeClass.TINY
+    elif n < 5_000:
+        return DatasetSizeClass.SMALL
+    elif n < 20_000:
+        return DatasetSizeClass.MEDIUM
+    elif n < 100_000:
+        return DatasetSizeClass.LARGE
+    else:
+        return DatasetSizeClass.XLARGE
+
+
+# Per-size blacklist: algorithms that are too slow / memory-intensive
+_SIZE_BLACKLIST: Dict[DatasetSizeClass, List[str]] = {
+    DatasetSizeClass.TINY: [],
+    DatasetSizeClass.SMALL: [],
+    DatasetSizeClass.MEDIUM: [
+        "affinity_propagation", "diana_divisive",
+        "spectral_biclustering", "spectral_coclustering",
+        "kmedoids",
+    ],
+    DatasetSizeClass.LARGE: [
+        "affinity_propagation", "diana_divisive",
+        "spectral_rbf", "spectral_kmeans", "spectral_discretize", "spectral_cluster_qr",
+        "spectral_biclustering", "spectral_coclustering",
+        "kmedoids", "denclue", "possibilistic_cmeans",
+        "mean_shift", "isomap_kmeans", "lle_kmeans",
+        "random_subspace_ensemble", "ensemble_voting",
+        "agglomerative_ward", "agglomerative_complete",
+        "agglomerative_average", "agglomerative_single",
+    ],
+    DatasetSizeClass.XLARGE: [
+        "affinity_propagation", "diana_divisive", "denclue", "possibilistic_cmeans",
+        "spectral_kmeans", "spectral_discretize", "spectral_cluster_qr",
+        "spectral_biclustering", "spectral_coclustering",
+        "kmedoids", "mean_shift", "isomap_kmeans", "lle_kmeans",
+        "random_subspace_ensemble", "ensemble_voting",
+        "agglomerative_ward", "agglomerative_complete",
+        "agglomerative_average", "agglomerative_single",
+        "gmm_full", "gmm_tied", "bgmm",
+        "fuzzy_cmeans", "clique_subspace", "som_clustering",
+    ],
+}
+
+
+def get_recommended_algorithms(n: int, d: int,
+                                all_ids: List[str]) -> Tuple[List[str], List[str]]:
+    """Returns (allowed_ids, skipped_ids) based on dataset size."""
+    size_class = classify_dataset(n, d)
+    blacklisted = set(_SIZE_BLACKLIST.get(size_class, []))
+    allowed = [aid for aid in all_ids if aid not in blacklisted]
+    skipped = [aid for aid in all_ids if aid in blacklisted]
+    return allowed, skipped
+
+
+# ──────────────────────────────────────────────────────────────────
+# MAIN RUNNER
+# ──────────────────────────────────────────────────────────────────
+
+class ClusteringRunner:
+    """
+    Master runner — schedules, executes, and collects results for
+    a user-specified list of clustering algorithms.
+    """
+
+    def __init__(self, config: Optional[RunnerConfig] = None):
+        self.config = config or RunnerConfig()
+        self._cache = ResultCache(max_entries=200)
+        self._executor = SingleAlgorithmExecutor(self.config)
+        self._profiler = SpeedProfiler()
+        self._run_log: List[str] = []
+
+    # ── Public API ────────────────────────────────────────────────
+
+    def run_algorithms(self,
+                       algorithm_ids: List[str],
+                       X: np.ndarray,
+                       param_overrides: Optional[Dict[str, Dict[str, Any]]] = None
+                       ) -> BatchRunResult:
+        """Execute a list of algorithms on dataset X."""
+        self._run_log = []
+        param_overrides = param_overrides or {}
+        t_global = time.perf_counter()
+
+        n, d = X.shape
+        self._log(f"Running {len(algorithm_ids)} algorithms on {n}×{d} dataset")
+
+        # Determine execution mode
+        mode = self._select_execution_mode(n, d)
+        self._log(f"Execution mode: {mode.value}")
+
+        # Filter algorithms by dataset size
+        if self.config.skip_slow_on_large:
+            allowed, skipped_ids = get_recommended_algorithms(n, d, algorithm_ids)
+            if skipped_ids:
+                self._log(
+                    f"Skipping {len(skipped_ids)} algorithms (too slow for "
+                    f"n={n}): {skipped_ids[:5]}{'...' if len(skipped_ids) > 5 else ''}"
                 )
+        else:
+            allowed = algorithm_ids
+            skipped_ids = []
+
+        # Execute
+        results: Dict[str, ClusteringResult] = {}
+
+        # Pre-fill skipped
+        for aid in skipped_ids:
+            results[aid] = self._make_skipped(aid)
+
+        if mode == ExecutionMode.PARALLEL:
+            run_results = self._run_parallel(allowed, X, param_overrides)
+        else:
+            run_results = self._run_sequential(allowed, X, param_overrides)
+
+        results.update(run_results)
+
+        total_runtime = time.perf_counter() - t_global
+        self._log(f"Total batch runtime: {total_runtime:.2f}s")
+
+        return self._build_batch_result(results, algorithm_ids, X, total_runtime)
+
+    def run_single(self, algorithm_id: str, X: np.ndarray,
+                   params: Optional[Dict[str, Any]] = None) -> ClusteringResult:
+        """Execute a single algorithm."""
+        params = params or {}
+        if self.config.use_cache:
+            cached = self._cache.get(algorithm_id, X, params)
+            if cached is not None:
+                self._log(f"Cache hit: {algorithm_id}")
+                return cached
+        result = self._executor.run(algorithm_id, X, params)
+        self._profiler.record(algorithm_id, result.runtime_seconds)
+        if self.config.use_cache and result.succeeded:
+            self._cache.set(algorithm_id, X, params, result)
+        return result
+
+    def run_single_with_timeout(self, algorithm_id: str, X: np.ndarray,
+                                params: Optional[Dict[str, Any]] = None
+                                ) -> ClusteringResult:
+        """Execute with hard timeout using thread-based isolation."""
+        params = params or {}
+        timeout = self.config.timeout_seconds
+        result_holder = {}
+
+        def _worker():
+            try:
+                result_holder["result"] = self._executor.run(algorithm_id, X, params)
             except Exception as e:
                 result_holder["error"] = str(e)
 
-        thread = threading.Thread(target=_execute, daemon=True)
-        thread.start()
-        thread.join(timeout=self.timeout)
+        t = threading.Thread(target=_worker, daemon=True)
+        t.start()
+        t.join(timeout=timeout)
 
-        if thread.is_alive():
-            return SingleRunResult(
-                algorithm_name=algo_name, display_name=display_name,
-                labels=np.full(len(X), -1, dtype=int),
-                n_clusters_found=0, n_noise=len(X),
-                params_used=params, fit_time_seconds=float(self.timeout),
+        if t.is_alive():
+            self._log(f"TIMEOUT: {algorithm_id} exceeded {timeout}s")
+            return ClusteringResult(
+                algorithm_id=algorithm_id,
+                algorithm_name=algorithm_id,
+                algorithm_family="unknown",
+                labels=np.array([], dtype=np.int32),
                 status=RunStatus.TIMEOUT,
-                error_message=f"Timeout after {self.timeout}s",
+                runtime_seconds=float(timeout),
+                n_clusters_found=0,
+                n_noise_points=0,
+                noise_ratio=0.0,
+                params_used=params,
+                error_message=f"Timeout after {timeout}s",
             )
-        if result_holder["error"]:
-            return SingleRunResult(
-                algorithm_name=algo_name, display_name=display_name,
-                labels=np.full(len(X), -1, dtype=int),
-                n_clusters_found=0, n_noise=len(X),
-                params_used=params, fit_time_seconds=0.0,
-                status=RunStatus.FAILED,
-                error_message=result_holder["error"],
+
+        if "error" in result_holder:
+            return SingleAlgorithmExecutor._make_error_result(
+                algorithm_id, result_holder["error"], timeout,
+                "unknown", algorithm_id, params
             )
-        return result_holder["result"]
 
-
-# ──────────────────────────────────────────────────────────────────
-# ELBOW & KNEEDLE FINDER
-# ──────────────────────────────────────────────────────────────────
-
-class ElbowFinder:
-    """Finds optimal k using the Kneedle algorithm on inertia/metric curves."""
-
-    @staticmethod
-    def find_elbow(k_values: List[int], scores: List[float],
-                   direction: str = "decreasing",
-                   sensitivity: float = 1.0) -> int:
-        if len(k_values) < 3:
-            return k_values[0] if k_values else 2
-        k_arr = np.array(k_values, dtype=float)
-        s_arr = np.array(scores, dtype=float)
-        k_norm = (k_arr - k_arr.min()) / max(k_arr.max() - k_arr.min(), 1e-16)
-        s_norm = (s_arr - s_arr.min()) / max(s_arr.max() - s_arr.min(), 1e-16)
-        if direction == "decreasing":
-            diff = k_norm - s_norm
-        else:
-            diff = s_norm - k_norm
-        elbow_idx = int(np.argmax(diff))
-        return int(k_values[elbow_idx])
-
-    @staticmethod
-    def compute_inertia_curve(X: np.ndarray, k_range: Tuple[int, int],
-                              random_state: int = 42,
-                              callback: Optional[Callable] = None) -> Tuple[List[int], List[float]]:
-        k_values = list(range(k_range[0], k_range[1] + 1))
-        inertias = []
-        for i, k in enumerate(k_values):
-            km = KMeans(n_clusters=k, n_init=5, max_iter=200,
-                        random_state=random_state)
-            km.fit(X)
-            inertias.append(float(km.inertia_))
-            if callback:
-                callback(f"Elbow k={k}", (i + 1) / len(k_values))
-        return k_values, inertias
-
-    @staticmethod
-    def compute_silhouette_curve(X: np.ndarray, k_range: Tuple[int, int],
-                                 random_state: int = 42, sample_size: int = 5000,
-                                 callback: Optional[Callable] = None) -> Tuple[List[int], List[float]]:
-        k_values = list(range(k_range[0], k_range[1] + 1))
-        scores = []
-        n_sample = min(sample_size, len(X))
-        for i, k in enumerate(k_values):
-            km = KMeans(n_clusters=k, n_init=5, max_iter=200,
-                        random_state=random_state)
-            labels = km.fit_predict(X)
-            try:
-                sc = silhouette_score(X, labels, sample_size=n_sample)
-            except Exception:
-                sc = -1.0
-            scores.append(float(sc))
-            if callback:
-                callback(f"Silhouette k={k}", (i + 1) / len(k_values))
-        return k_values, scores
-
-
-# ──────────────────────────────────────────────────────────────────
-# HYPERPARAMETER SWEEP
-# ──────────────────────────────────────────────────────────────────
-
-class HyperparamSweep:
-    """Grid sweep over k-range and/or algorithm-specific params."""
-
-    def __init__(self, registry: AlgorithmRegistry, config: RunConfig):
-        self.registry = registry
-        self.config = config
-        self.runner = TimeoutRunner(config.timeout_seconds)
-
-    def sweep_k(self, X: np.ndarray, algo_name: str,
-                k_range: Tuple[int, int], data_hash: str = "",
-                callback: Optional[Callable] = None) -> List[SweepPoint]:
-        points: List[SweepPoint] = []
-        k_vals = list(range(k_range[0], k_range[1] + 1))
-        base_params = self.registry.get_default_params(algo_name)
-        base_params["random_state"] = self.config.random_state
-        n_sample = min(5000, len(X))
-
-        for i, k in enumerate(k_vals):
-            params = {**base_params, "n_clusters": k}
-            try:
-                model = self.registry.build(algo_name, params)
-                result = self.runner.run(model, X, algo_name, params)
-                if result.status == RunStatus.SUCCESS and result.n_clusters_found >= 2:
-                    try:
-                        metric_val = silhouette_score(
-                            X, result.labels, sample_size=n_sample
-                        )
-                    except Exception:
-                        metric_val = -1.0
-                    points.append(SweepPoint(
-                        k=k, algorithm=algo_name, params=params,
-                        labels=result.labels, n_clusters_found=result.n_clusters_found,
-                        metric_value=float(metric_val),
-                        metric_name=self.config.sweep_metric,
-                        fit_time=result.fit_time_seconds,
-                    ))
-            except Exception as e:
-                logger.warning(f"Sweep k={k} {algo_name} failed: {e}")
-            if callback:
-                callback(f"Sweep {algo_name} k={k}", (i + 1) / len(k_vals))
-
-        return points
-
-    def sweep_params(self, X: np.ndarray, algo_name: str,
-                     param_grid: Dict[str, List[Any]],
-                     callback: Optional[Callable] = None) -> List[SweepPoint]:
-        import itertools
-        keys = list(param_grid.keys())
-        vals = list(param_grid.values())
-        combos = list(itertools.product(*vals))
-        if len(combos) > 100:
-            rng = np.random.RandomState(self.config.random_state)
-            idx = rng.choice(len(combos), 100, replace=False)
-            combos = [combos[i] for i in idx]
-
-        points: List[SweepPoint] = []
-        n_sample = min(5000, len(X))
-        for i, combo in enumerate(combos):
-            params = dict(zip(keys, combo))
-            params["random_state"] = self.config.random_state
-            try:
-                model = self.registry.build(algo_name, params)
-                result = self.runner.run(model, X, algo_name, params)
-                if result.status == RunStatus.SUCCESS and result.n_clusters_found >= 2:
-                    try:
-                        metric_val = silhouette_score(
-                            X, result.labels, sample_size=n_sample
-                        )
-                    except Exception:
-                        metric_val = -1.0
-                    k_val = params.get("n_clusters", result.n_clusters_found)
-                    points.append(SweepPoint(
-                        k=k_val, algorithm=algo_name, params=params,
-                        labels=result.labels, n_clusters_found=result.n_clusters_found,
-                        metric_value=float(metric_val),
-                        metric_name=self.config.sweep_metric,
-                        fit_time=result.fit_time_seconds,
-                    ))
-            except Exception as e:
-                logger.warning(f"Param sweep {algo_name} failed: {e}")
-            if callback:
-                callback(f"Param sweep {algo_name}", (i + 1) / len(combos))
-
-        return points
-
-
-# ──────────────────────────────────────────────────────────────────
-# PARALLEL BATCH RUNNER
-# ──────────────────────────────────────────────────────────────────
-
-class ParallelRunner:
-    """Runs multiple algorithms in parallel with progress tracking."""
-
-    def __init__(self, registry: AlgorithmRegistry, config: RunConfig):
-        self.registry = registry
-        self.config = config
-        self.cache = ResultCache(config.cache_dir) if config.enable_cache else None
-        self.timeout_runner = TimeoutRunner(config.timeout_seconds)
-
-    def _compute_data_hash(self, X: np.ndarray) -> str:
-        sample = X[:min(500, len(X))].tobytes()
-        return hashlib.md5(sample).hexdigest()[:16]
-
-    def run_single(self, X: np.ndarray, algo_name: str,
-                   params: Optional[Dict[str, Any]] = None) -> SingleRunResult:
-        meta = self.registry.get(algo_name)
-        if meta is None:
-            return SingleRunResult(
-                algorithm_name=algo_name, display_name=algo_name,
-                labels=np.full(len(X), -1), n_clusters_found=0, n_noise=len(X),
-                params_used=params or {}, fit_time_seconds=0.0,
-                status=RunStatus.FAILED, error_message=f"Unknown algorithm: {algo_name}",
+        result = result_holder.get("result")
+        if result is None:
+            return SingleAlgorithmExecutor._make_error_result(
+                algorithm_id, "Unknown error (no result returned)", timeout,
+                "unknown", algorithm_id, params
             )
-        final_params = self.registry.get_default_params(algo_name)
-        final_params["random_state"] = self.config.random_state
-        if meta.requires_n_clusters:
-            final_params["n_clusters"] = self.config.n_clusters
-        if params:
-            final_params.update(params)
-        data_hash = self._compute_data_hash(X)
-        if self.cache:
-            cached = self.cache.get(algo_name, final_params, data_hash)
-            if cached:
-                return cached
-        try:
-            model = self.registry.build(algo_name, final_params)
-        except Exception as e:
-            return SingleRunResult(
-                algorithm_name=algo_name, display_name=meta.display_name,
-                labels=np.full(len(X), -1), n_clusters_found=0, n_noise=len(X),
-                params_used=final_params, fit_time_seconds=0.0,
-                status=RunStatus.FAILED, error_message=f"Build error: {e}",
-            )
-        result = self.timeout_runner.run(model, X, algo_name, final_params)
-        if self.cache and result.status == RunStatus.SUCCESS:
-            self.cache.put(algo_name, final_params, data_hash, result)
         return result
 
-    def run_batch(self, X: np.ndarray,
-                  algorithms: Optional[List[str]] = None,
-                  params_override: Optional[Dict[str, Dict]] = None,
-                  callback: Optional[Callable] = None) -> BatchResult:
-        t0 = time.perf_counter()
-        algo_list = algorithms or self.config.algorithms
-        overrides = params_override or self.config.params_override
-        results: List[SingleRunResult] = []
-        sweep_points: List[SweepPoint] = []
-        n_total = len(algo_list)
+    # ── Execution Strategies ──────────────────────────────────────
 
-        for i, algo_name in enumerate(algo_list):
-            override = overrides.get(algo_name, {})
-            result = self.run_single(X, algo_name, override)
-            results.append(result)
-            if callback:
-                pct = (i + 1) / n_total
-                callback(f"Completed {algo_name}", pct)
-            if self.config.verbose and result.status != RunStatus.SUCCESS:
-                logger.warning(f"{algo_name}: {result.status.value} — {result.error_message}")
+    def _run_sequential(self,
+                        algorithm_ids: List[str],
+                        X: np.ndarray,
+                        param_overrides: Dict[str, Dict[str, Any]]
+                        ) -> Dict[str, ClusteringResult]:
+        results = {}
+        total = len(algorithm_ids)
+        for i, aid in enumerate(algorithm_ids, 1):
+            if self.config.progress_callback:
+                self.config.progress_callback(aid, i, total)
 
-        if self.config.sweep_mode and self.config.k_range:
-            sweeper = HyperparamSweep(self.registry, self.config)
-            for algo_name in algo_list:
-                meta = self.registry.get(algo_name)
-                if meta and meta.requires_n_clusters:
-                    pts = sweeper.sweep_k(X, algo_name, self.config.k_range,
-                                          callback=callback)
-                    sweep_points.extend(pts)
+            params = param_overrides.get(aid, {})
+            result = self.run_single_with_timeout(aid, X, params)
+            results[aid] = result
+            self._profiler.record(aid, result.runtime_seconds)
 
-        best_algo = None
-        best_score = -np.inf
-        for r in results:
-            if r.status == RunStatus.SUCCESS and r.n_clusters_found >= 2:
+            status_icon = "✓" if result.succeeded else ("⚠" if result.status == RunStatus.TIMEOUT else "✗")
+            self._log(
+                f"[{i:3d}/{total}] {status_icon} {aid:40s} "
+                f"{result.runtime_seconds:6.2f}s  "
+                f"k={result.n_clusters_found}"
+            )
+        return results
+
+    def _run_parallel(self,
+                      algorithm_ids: List[str],
+                      X: np.ndarray,
+                      param_overrides: Dict[str, Dict[str, Any]]
+                      ) -> Dict[str, ClusteringResult]:
+        results = {}
+        total = len(algorithm_ids)
+        completed = 0
+
+        # Sort: cheap algorithms first to populate cache quickly
+        fast_ids = [aid for aid in algorithm_ids if "kmeans" in aid or "minibatch" in aid]
+        slow_ids = [aid for aid in algorithm_ids if aid not in fast_ids]
+        ordered_ids = fast_ids + slow_ids
+
+        def _task(aid):
+            params = param_overrides.get(aid, {})
+            return aid, self.run_single_with_timeout(aid, X, params)
+
+        max_workers = min(self.config.max_workers, len(ordered_ids))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(_task, aid): aid for aid in ordered_ids}
+            for future in as_completed(futures):
                 try:
-                    sc = silhouette_score(X, r.labels,
-                                          sample_size=min(5000, len(X)))
-                    if sc > best_score:
-                        best_score = sc
-                        best_algo = r.algorithm_name
-                except Exception:
-                    pass
+                    aid, result = future.result()
+                    results[aid] = result
+                    completed += 1
+                    self._profiler.record(aid, result.runtime_seconds)
+                    if self.config.progress_callback:
+                        self.config.progress_callback(aid, completed, total)
+                    status_icon = "✓" if result.succeeded else "✗"
+                    self._log(
+                        f"[{completed:3d}/{total}] {status_icon} {aid:40s} "
+                        f"{result.runtime_seconds:6.2f}s"
+                    )
+                except Exception as e:
+                    aid = futures[future]
+                    results[aid] = SingleAlgorithmExecutor._make_error_result(
+                        aid, str(e), 0.0, "unknown", aid, {}
+                    )
+                    completed += 1
 
-        elapsed = time.perf_counter() - t0
-        n_failed = sum(1 for r in results if r.status != RunStatus.SUCCESS)
+        return results
 
-        return BatchResult(
-            results=results, sweep_points=sweep_points,
-            best_algorithm=best_algo, best_score=float(best_score),
-            total_time_seconds=round(elapsed, 3),
-            n_algorithms_run=len(results), n_algorithms_failed=n_failed,
-            config=self.config,
+    def _select_execution_mode(self, n: int, d: int) -> ExecutionMode:
+        if self.config.execution_mode != ExecutionMode.ADAPTIVE:
+            return self.config.execution_mode
+        # Adaptive: parallel for medium+ datasets, sequential for tiny/small
+        if n >= 5_000:
+            return ExecutionMode.PARALLEL
+        return ExecutionMode.SEQUENTIAL
+
+    # ── Helpers ───────────────────────────────────────────────────
+
+    def _build_batch_result(self, results: Dict[str, ClusteringResult],
+                            all_ids: List[str], X: np.ndarray,
+                            total_runtime: float) -> BatchRunResult:
+        n_success  = sum(1 for r in results.values() if r.status == RunStatus.SUCCESS)
+        n_cached   = sum(1 for r in results.values() if r.status == RunStatus.CACHED)
+        n_failed   = sum(1 for r in results.values() if r.status == RunStatus.FAILED)
+        n_timeout  = sum(1 for r in results.values() if r.status == RunStatus.TIMEOUT)
+        n_skipped  = sum(1 for r in results.values() if r.status == RunStatus.SKIPPED)
+
+        return BatchRunResult(
+            results=results,
+            total_runtime=total_runtime,
+            n_success=n_success,
+            n_failed=n_failed,
+            n_timeout=n_timeout,
+            n_skipped=n_skipped,
+            n_cached=n_cached,
+            algorithm_ids=all_ids,
+            dataset_shape=X.shape,
+            run_config=self.config,
+            cache_hit_rate=self._cache.hit_rate,
         )
 
-
-# ──────────────────────────────────────────────────────────────────
-# LABEL POST-PROCESSING
-# ──────────────────────────────────────────────────────────────────
-
-class LabelPostProcessor:
-    """Post-process cluster labels for consistency and analysis."""
-
     @staticmethod
-    def relabel_by_size(labels: np.ndarray) -> np.ndarray:
-        """Relabel clusters so that cluster 0 is the largest, etc."""
-        unique = [l for l in np.unique(labels) if l >= 0]
-        if not unique:
-            return labels
-        counts = [(l, (labels == l).sum()) for l in unique]
-        counts.sort(key=lambda x: -x[1])
-        mapping = {old: new for new, (old, _) in enumerate(counts)}
-        mapping[-1] = -1
-        return np.array([mapping.get(l, l) for l in labels])
-
-    @staticmethod
-    def separate_noise(labels: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        """Returns (clean_mask, noise_mask)."""
-        noise_mask = labels == -1
-        return ~noise_mask, noise_mask
-
-    @staticmethod
-    def merge_small_clusters(labels: np.ndarray, min_size: int = 5) -> np.ndarray:
-        """Merge clusters smaller than min_size into nearest large cluster centroids."""
-        result = labels.copy()
-        unique = [l for l in np.unique(labels) if l >= 0]
-        small = [l for l in unique if (labels == l).sum() < min_size]
-        if not small:
-            return result
-        large = [l for l in unique if l not in small]
-        if not large:
-            return result
-        for s in small:
-            result[result == s] = large[0]
-        return LabelPostProcessor.relabel_by_size(result)
-
-    @staticmethod
-    def compute_cluster_sizes(labels: np.ndarray) -> Dict[int, int]:
-        unique, counts = np.unique(labels, return_counts=True)
-        return {int(u): int(c) for u, c in zip(unique, counts)}
-
-    @staticmethod
-    def compute_label_entropy(labels: np.ndarray) -> float:
-        """Shannon entropy of cluster assignment distribution."""
-        counts = np.bincount(labels[labels >= 0])
-        counts = counts[counts > 0]
-        probs = counts / counts.sum()
-        return float(-np.sum(probs * np.log2(probs + 1e-16)))
-
-    @staticmethod
-    def compute_balance_score(labels: np.ndarray) -> float:
-        """How balanced are cluster sizes? 1.0 = perfectly balanced."""
-        sizes = [int((labels == l).sum()) for l in np.unique(labels) if l >= 0]
-        if not sizes:
-            return 0.0
-        return float(min(sizes) / max(max(sizes), 1))
-
-
-# ──────────────────────────────────────────────────────────────────
-# CLUSTERING ORCHESTRATOR — TOP-LEVEL API
-# ──────────────────────────────────────────────────────────────────
-
-class ClusteringOrchestrator:
-    """Top-level API for the frontend. Wires together all components."""
-
-    def __init__(self, config: Optional[RunConfig] = None):
-        self.config = config or RunConfig()
-        self.registry = REGISTRY
-        self.runner = ParallelRunner(self.registry, self.config)
-        self.elbow_finder = ElbowFinder()
-        self.post_processor = LabelPostProcessor()
-        self._last_batch_result: Optional[BatchResult] = None
-
-    def update_config(self, **kwargs):
-        for k, v in kwargs.items():
-            if hasattr(self.config, k):
-                setattr(self.config, k, v)
-        self.runner = ParallelRunner(self.registry, self.config)
-
-    def run(self, X: np.ndarray,
-            algorithms: Optional[List[str]] = None,
-            callback: Optional[Callable] = None) -> BatchResult:
-        result = self.runner.run_batch(X, algorithms=algorithms, callback=callback)
-        for r in result.results:
-            if r.status == RunStatus.SUCCESS:
-                r.labels = self.post_processor.relabel_by_size(r.labels)
-        self._last_batch_result = result
-        return result
-
-    def run_elbow(self, X: np.ndarray, k_range: Tuple[int, int] = (2, 15),
-                  callback: Optional[Callable] = None) -> Dict[str, Any]:
-        k_vals, inertias = self.elbow_finder.compute_inertia_curve(
-            X, k_range, self.config.random_state, callback
+    def _make_skipped(algorithm_id: str) -> ClusteringResult:
+        return ClusteringResult(
+            algorithm_id=algorithm_id,
+            algorithm_name=algorithm_id,
+            algorithm_family="unknown",
+            labels=np.array([], dtype=np.int32),
+            status=RunStatus.SKIPPED,
+            runtime_seconds=0.0,
+            n_clusters_found=0,
+            n_noise_points=0,
+            noise_ratio=0.0,
+            params_used={},
+            error_message="Skipped: dataset too large for this algorithm",
         )
-        k_sil, sil_scores = self.elbow_finder.compute_silhouette_curve(
-            X, k_range, self.config.random_state, callback=callback
-        )
-        optimal_k_inertia = self.elbow_finder.find_elbow(k_vals, inertias, "decreasing")
-        optimal_k_silhouette = k_sil[int(np.argmax(sil_scores))]
-        return {
-            "k_values": k_vals,
-            "inertias": inertias,
-            "silhouette_scores": sil_scores,
-            "optimal_k_inertia": optimal_k_inertia,
-            "optimal_k_silhouette": optimal_k_silhouette,
-            "recommended_k": optimal_k_silhouette,
-        }
 
-    def run_sweep(self, X: np.ndarray, algo_name: str,
-                  k_range: Tuple[int, int] = (2, 15),
-                  callback: Optional[Callable] = None) -> List[SweepPoint]:
-        sweeper = HyperparamSweep(self.registry, self.config)
-        return sweeper.sweep_k(X, algo_name, k_range, callback=callback)
+    def _log(self, msg: str):
+        self._run_log.append(msg)
+        if self.config.verbose:
+            logger.info(msg)
 
-    def get_last_result(self) -> Optional[BatchResult]:
-        return self._last_batch_result
-
-    def list_algorithms(self) -> List[Dict]:
-        return self.registry.get_summary_table()
-
-    def recommend_algorithms(self, n_samples: int, n_features: int,
-                             **kwargs) -> List[Tuple[AlgorithmMeta, float]]:
-        return self.registry.recommend(n_samples, n_features, **kwargs)
+    # ── Cache API ─────────────────────────────────────────────────
 
     def clear_cache(self):
-        if self.runner.cache:
-            self.runner.cache.clear()
-
-    def get_algorithm_info(self, name: str) -> Optional[AlgorithmMeta]:
-        return self.registry.get(name)
-
-    def get_default_params(self, name: str) -> Dict[str, Any]:
-        return self.registry.get_default_params(name)
+        self._cache.clear()
+        self._log("Cache cleared")
 
     @property
-    def available_algorithms(self) -> List[str]:
-        return self.registry.list_names()
+    def cache_stats(self) -> Dict[str, Any]:
+        return self._cache.stats
 
     @property
-    def algorithm_families(self) -> List[str]:
-        return self.registry.list_families()
+    def run_log(self) -> List[str]:
+        return self._run_log
 
-    def get_results_dataframe(self) -> Optional[pd.DataFrame]:
-        if self._last_batch_result is None:
-            return None
-        rows = []
-        for r in self._last_batch_result.results:
-            rows.append({
-                "Algorithm": r.display_name,
-                "Status": r.status.value,
-                "Clusters": r.n_clusters_found,
-                "Noise": r.n_noise,
-                "Time (s)": r.fit_time_seconds,
-                "Error": r.error_message or "",
-            })
-        return pd.DataFrame(rows)
 
-    def get_best_result(self) -> Optional[SingleRunResult]:
-        """Return the best single result by silhouette from the last batch."""
-        if self._last_batch_result is None:
-            return None
-        best = None
-        best_name = self._last_batch_result.best_algorithm
-        for r in self._last_batch_result.results:
-            if r.algorithm_name == best_name:
-                best = r
-                break
-        return best
+# ──────────────────────────────────────────────────────────────────
+# PARAMETER SWEEP RUNNER
+# ──────────────────────────────────────────────────────────────────
 
-    def export_labels(self, result: SingleRunResult, index: Optional[pd.Index] = None) -> pd.DataFrame:
-        """Export cluster labels as a DataFrame."""
-        df = pd.DataFrame({"cluster_label": result.labels})
-        if index is not None and len(index) == len(result.labels):
-            df.index = index
-        df["is_noise"] = result.labels == -1
+class ParameterSweepRunner:
+    """
+    Runs a single algorithm across a grid of hyper-parameter values,
+    returning all results for comparison.
+    """
+
+    def __init__(self, base_config: Optional[RunnerConfig] = None):
+        self._base_config = base_config or RunnerConfig()
+
+    def sweep(self,
+              algorithm_id: str,
+              X: np.ndarray,
+              param_grid: Dict[str, List[Any]],
+              progress_callback: Optional[Callable] = None
+              ) -> List[ClusteringResult]:
+        """
+        Executes algorithm for all combinations in param_grid.
+        Returns list of ClusteringResults, one per combination.
+        """
+        import itertools
+        keys = list(param_grid.keys())
+        values = list(param_grid.values())
+        combos = list(itertools.product(*values))
+
+        results = []
+        total = len(combos)
+        executor = SingleAlgorithmExecutor(self._base_config)
+
+        for i, combo in enumerate(combos, 1):
+            params = dict(zip(keys, combo))
+            if progress_callback:
+                progress_callback(params, i, total)
+            result = executor.run(algorithm_id, X, params)
+            result.extra_info["param_combo"] = params
+            results.append(result)
+
+        return results
+
+    def k_sweep(self,
+                algorithm_id: str,
+                X: np.ndarray,
+                k_range: range,
+                extra_params: Optional[Dict[str, Any]] = None
+                ) -> List[ClusteringResult]:
+        """Sweep over number of clusters k."""
+        extra_params = extra_params or {}
+        param_grid = {"n_clusters": list(k_range)}
+        param_grid.update({k: [v] for k, v in extra_params.items()})
+        return self.sweep(algorithm_id, X, param_grid)
+
+
+# ──────────────────────────────────────────────────────────────────
+# UTILITY FUNCTIONS
+# ──────────────────────────────────────────────────────────────────
+
+def make_runner(n_clusters: int = 8,
+                parallel: bool = True,
+                timeout: int = 120,
+                verbose: bool = False,
+                progress_callback: Optional[Callable] = None) -> ClusteringRunner:
+    """Convenience factory for creating a pre-configured runner."""
+    config = RunnerConfig(
+        n_clusters=n_clusters,
+        execution_mode=ExecutionMode.PARALLEL if parallel else ExecutionMode.SEQUENTIAL,
+        timeout_seconds=timeout,
+        verbose=verbose,
+        progress_callback=progress_callback,
+        use_cache=True,
+        skip_slow_on_large=True,
+    )
+    return ClusteringRunner(config)
+
+
+def run_all_algorithms(X: np.ndarray,
+                       n_clusters: int = 8,
+                       algorithm_ids: Optional[List[str]] = None,
+                       progress_callback: Optional[Callable] = None,
+                       timeout: int = 120) -> BatchRunResult:
+    """Top-level convenience: run all (or selected) algorithms on X."""
+    from clustering_registry import get_registry
+    registry = get_registry()
+
+    if algorithm_ids is None:
+        algorithm_ids = registry.ids()
+
+    runner = make_runner(
+        n_clusters=n_clusters,
+        parallel=True,
+        timeout=timeout,
+        progress_callback=progress_callback,
+    )
+    return runner.run_algorithms(algorithm_ids, X)
+
+
+def labels_to_cluster_sizes(labels: np.ndarray) -> Dict[int, int]:
+    """Returns {cluster_id: size} for a label array."""
+    from collections import Counter
+    return dict(Counter(labels.tolist()))
+
+
+def filter_degenerate_results(batch: BatchRunResult,
+                               min_clusters: int = 2,
+                               max_noise_ratio: float = 0.8) -> BatchRunResult:
+    """Remove results where too few clusters or too much noise."""
+    filtered = {}
+    for k, r in batch.results.items():
+        if not r.succeeded:
+            filtered[k] = r
+            continue
+        if r.n_clusters_found < min_clusters:
+            r.status = RunStatus.FAILED
+            r.error_message = f"Only {r.n_clusters_found} cluster(s) found"
+            filtered[k] = r
+            continue
+        if r.noise_ratio > max_noise_ratio:
+            r.status = RunStatus.FAILED
+            r.error_message = f"Noise ratio {r.noise_ratio:.1%} exceeds threshold"
+            filtered[k] = r
+            continue
+        filtered[k] = r
+    batch.results = filtered
+    return batch
+
+
+def compute_cluster_statistics(labels: np.ndarray) -> Dict[str, Any]:
+    """Detailed per-cluster size statistics from label array."""
+    valid = labels[labels != -1]
+    if len(valid) == 0:
+        return {"n_clusters": 0, "sizes": {}, "min_size": 0, "max_size": 0}
+    from collections import Counter
+    counts = Counter(valid.tolist())
+    sizes = list(counts.values())
+    return {
+        "n_clusters": len(counts),
+        "sizes": dict(counts),
+        "min_size": int(min(sizes)),
+        "max_size": int(max(sizes)),
+        "mean_size": float(np.mean(sizes)),
+        "std_size": float(np.std(sizes)),
+        "balance_ratio": float(min(sizes) / max(sizes)) if max(sizes) > 0 else 0.0,
+        "n_noise": int((labels == -1).sum()),
+        "noise_ratio": float((labels == -1).mean()),
+        "size_entropy": float(-sum(
+            (c / len(valid)) * np.log2(c / len(valid) + 1e-12)
+            for c in sizes
+        )),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
+# FINAL POLISH — ADVANCED RUNNER ADDITIONS
+# ══════════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────────
+# EXECUTION TIMELINE RECORDER
+# ──────────────────────────────────────────────────────────────────
+
+class ExecutionTimeline:
+    """
+    Records a detailed timeline of algorithm execution.
+    Tracks: start time, end time, memory delta, status.
+    Used for profiling and identifying bottlenecks.
+    """
+    def __init__(self):
+        self._events: List[Dict[str, Any]] = []
+        self._t_start = time.perf_counter()
+
+    def record(self, algorithm_id: str, algorithm_name: str,
+               status: str, runtime: float,
+               n_clusters: int, extra: Optional[Dict] = None):
+        elapsed = time.perf_counter() - self._t_start
+        event = {
+            "algorithm_id": algorithm_id,
+            "algorithm_name": algorithm_name[:40],
+            "status": status,
+            "runtime_s": round(runtime, 4),
+            "elapsed_s": round(elapsed, 4),
+            "n_clusters": n_clusters,
+        }
+        if extra:
+            event.update(extra)
+        self._events.append(event)
+
+    def to_dataframe(self) -> "pd.DataFrame":
+        import pandas as pd
+        if not self._events:
+            return pd.DataFrame()
+        df = pd.DataFrame(self._events)
+        df = df.sort_values("elapsed_s").reset_index(drop=True)
         return df
 
+    def summary(self) -> Dict[str, Any]:
+        if not self._events:
+            return {}
+        runtimes = [e["runtime_s"] for e in self._events]
+        statuses = [e["status"] for e in self._events]
+        return {
+            "n_events": len(self._events),
+            "total_wall_time": round(time.perf_counter() - self._t_start, 3),
+            "fastest": min(self._events, key=lambda e: e["runtime_s"])["algorithm_id"],
+            "slowest": max(self._events, key=lambda e: e["runtime_s"])["algorithm_id"],
+            "mean_runtime": round(float(np.mean(runtimes)), 3),
+            "median_runtime": round(float(np.median(runtimes)), 3),
+            "n_success": statuses.count("success") + statuses.count("cached"),
+            "n_failed": statuses.count("failed"),
+            "n_timeout": statuses.count("timeout"),
+        }
+
+    @property
+    def events(self) -> List[Dict[str, Any]]:
+        return self._events
+
 
 # ──────────────────────────────────────────────────────────────────
-# DATA SUBSAMPLER — Intelligent sampling for large datasets
+# MEMORY-AWARE SCHEDULER
 # ──────────────────────────────────────────────────────────────────
 
-class DataSubsampler:
-    """Provides intelligent subsampling strategies for large datasets."""
+class MemoryAwareScheduler:
+    """
+    Estimates memory usage per algorithm and reorders execution
+    to avoid running multiple high-memory algorithms simultaneously.
+    Also gates algorithms that exceed available system memory.
+    """
+    # Rough bytes-per-element multipliers
+    MEMORY_CLASS = {
+        "O(n)":       1,
+        "O(n log n)": 2,
+        "O(n²)":      4,
+        "O(n²·k)":    6,
+        "O(n³)":      10,
+        "varies":     2,
+    }
 
-    def __init__(self, random_state: int = 42):
-        self.random_state = random_state
+    def __init__(self, safety_factor: float = 0.6):
+        self.safety_factor = safety_factor
 
-    def uniform_sample(self, X: np.ndarray, n_samples: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Uniform random subsampling with index tracking."""
-        rng = np.random.RandomState(self.random_state)
-        if n_samples >= len(X):
-            return X, np.arange(len(X))
-        idx = rng.choice(len(X), n_samples, replace=False)
-        return X[idx], idx
+    def estimate_memory_mb(self, algorithm_id: str, n: int, d: int) -> float:
+        """Rough upper bound on peak memory in MB."""
+        try:
+            from clustering_registry import get_registry
+            spec = get_registry().get(algorithm_id)
+            mult = self.MEMORY_CLASS.get(spec.time_complexity.value, 2)
+            bytes_est = mult * n * d * 8  # float64
+            if "agglomerative" in algorithm_id or "spectral" in algorithm_id:
+                bytes_est += n * n * 4  # distance matrix
+            if "gmm" in algorithm_id:
+                bytes_est += n * d * d * 8  # covariance matrices
+            return bytes_est / 1e6
+        except Exception:
+            return float(n * d * 8 / 1e6)
 
-    def stratified_sample(self, X: np.ndarray, labels: np.ndarray,
-                          n_samples: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Stratified subsampling preserving cluster proportions."""
-        rng = np.random.RandomState(self.random_state)
-        if n_samples >= len(X):
-            return X, np.arange(len(X))
-        unique = np.unique(labels)
-        counts = {u: (labels == u).sum() for u in unique}
-        total = sum(counts.values())
-        selected_idx = []
-        for u in unique:
-            n_from_u = max(1, int(n_samples * counts[u] / total))
-            u_idx = np.where(labels == u)[0]
-            if len(u_idx) > n_from_u:
-                chosen = rng.choice(u_idx, n_from_u, replace=False)
+    def available_memory_mb(self) -> float:
+        """Available system RAM in MB."""
+        try:
+            import psutil
+            return psutil.virtual_memory().available / 1e6
+        except ImportError:
+            return 4000.0  # Conservative fallback: 4 GB
+
+    def filter_feasible(self, algorithm_ids: List[str],
+                         n: int, d: int) -> Tuple[List[str], List[str]]:
+        """Returns (feasible_ids, too_large_ids)."""
+        avail = self.available_memory_mb() * self.safety_factor
+        feasible, too_large = [], []
+        for aid in algorithm_ids:
+            est = self.estimate_memory_mb(aid, n, d)
+            if est > avail:
+                too_large.append(aid)
             else:
-                chosen = u_idx
-            selected_idx.extend(chosen)
-        idx = np.array(selected_idx)
-        return X[idx], idx
+                feasible.append(aid)
+        return feasible, too_large
 
-    def density_sample(self, X: np.ndarray, n_samples: int,
-                       n_neighbors: int = 5) -> Tuple[np.ndarray, np.ndarray]:
-        """Density-based subsampling: keeps more points from sparse regions."""
-        from sklearn.neighbors import NearestNeighbors
-        rng = np.random.RandomState(self.random_state)
-        if n_samples >= len(X):
-            return X, np.arange(len(X))
-        nn = NearestNeighbors(n_neighbors=min(n_neighbors, len(X) - 1))
-        nn.fit(X)
-        dists, _ = nn.kneighbors(X)
-        mean_dists = dists.mean(axis=1)
-        probs = mean_dists / mean_dists.sum()
-        idx = rng.choice(len(X), n_samples, replace=False, p=probs)
-        return X[idx], idx
+    def schedule_by_memory(self, algorithm_ids: List[str],
+                            n: int, d: int) -> List[str]:
+        """Sort so light algorithms run first (better parallelism)."""
+        estimates = {aid: self.estimate_memory_mb(aid, n, d) for aid in algorithm_ids}
+        return sorted(algorithm_ids, key=lambda aid: estimates.get(aid, 0))
 
-    def geometric_sketch(self, X: np.ndarray, n_samples: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Geometric sketching: farthest-point subsampling for maximum coverage."""
-        rng = np.random.RandomState(self.random_state)
-        if n_samples >= len(X):
-            return X, np.arange(len(X))
-        selected = [rng.randint(0, len(X))]
-        min_dists = np.full(len(X), np.inf)
-        for _ in range(n_samples - 1):
-            last = X[selected[-1]]
-            dists = np.linalg.norm(X - last, axis=1)
-            min_dists = np.minimum(min_dists, dists)
-            min_dists[selected] = -1
-            next_idx = int(np.argmax(min_dists))
-            selected.append(next_idx)
-        idx = np.array(selected)
-        return X[idx], idx
 
-    def coreset_sample(self, X: np.ndarray, n_samples: int,
-                       n_init_clusters: int = 50) -> Tuple[np.ndarray, np.ndarray]:
-        """Lightweight coreset construction using K-Means++ seeding."""
-        rng = np.random.RandomState(self.random_state)
-        if n_samples >= len(X):
-            return X, np.arange(len(X))
-        n_proto = min(n_init_clusters, n_samples // 2, len(X))
-        km = KMeans(n_clusters=n_proto, n_init=1, max_iter=50,
-                    random_state=self.random_state)
-        km.fit(X)
-        per_cluster = max(1, n_samples // n_proto)
-        selected_idx = []
-        for c in range(n_proto):
-            c_idx = np.where(km.labels_ == c)[0]
-            if len(c_idx) == 0:
+# ──────────────────────────────────────────────────────────────────
+# RESULT FINGERPRINTER
+# ──────────────────────────────────────────────────────────────────
+
+class ResultFingerprinter:
+    """
+    Creates a compact fingerprint of a clustering result for
+    deduplication, comparison, and reproducibility tracking.
+    Two identical label arrays produce identical fingerprints.
+    """
+    @staticmethod
+    def fingerprint(labels: np.ndarray) -> str:
+        """Returns a 16-char hex fingerprint of a label array."""
+        canonical = ResultFingerprinter._canonicalise(labels)
+        return hashlib.md5(canonical.tobytes()).hexdigest()[:16]
+
+    @staticmethod
+    def _canonicalise(labels: np.ndarray) -> np.ndarray:
+        """Relabel clusters in order of first appearance (canonical form)."""
+        mapping = {}
+        next_id = 0
+        out = np.empty_like(labels)
+        for i, lab in enumerate(labels):
+            if lab == -1:
+                out[i] = -1
                 continue
-            dists = np.linalg.norm(X[c_idx] - km.cluster_centers_[c], axis=1)
-            n_pick = min(per_cluster, len(c_idx))
-            sorted_idx = c_idx[np.argsort(dists)]
-            selected_idx.extend(sorted_idx[:n_pick].tolist())
-        idx = np.array(selected_idx[:n_samples])
-        return X[idx], idx
+            if lab not in mapping:
+                mapping[lab] = next_id
+                next_id += 1
+            out[i] = mapping[lab]
+        return out
+
+    @staticmethod
+    def are_equivalent(labels_a: np.ndarray,
+                        labels_b: np.ndarray) -> bool:
+        """True if two label arrays represent the same partition."""
+        if len(labels_a) != len(labels_b):
+            return False
+        fp_a = ResultFingerprinter.fingerprint(labels_a)
+        fp_b = ResultFingerprinter.fingerprint(labels_b)
+        return fp_a == fp_b
+
+    @staticmethod
+    def deduplicate(results: Dict[str, "ClusteringResult"]
+                    ) -> Tuple[Dict[str, "ClusteringResult"], Dict[str, str]]:
+        """
+        Remove duplicate clustering results.
+        Returns (unique_results, duplicate_map: {dup_id → original_id}).
+        """
+        seen: Dict[str, str] = {}  # fingerprint → first algorithm_id
+        unique: Dict[str, "ClusteringResult"] = {}
+        duplicate_map: Dict[str, str] = {}
+        for aid, cr in results.items():
+            if not cr.succeeded or len(cr.labels) == 0:
+                unique[aid] = cr
+                continue
+            fp = ResultFingerprinter.fingerprint(cr.labels)
+            if fp not in seen:
+                seen[fp] = aid
+                unique[aid] = cr
+            else:
+                duplicate_map[aid] = seen[fp]
+        return unique, duplicate_map
 
 
 # ──────────────────────────────────────────────────────────────────
-# RUN HISTORY — Tracks all clustering runs
+# INCREMENTAL / WARM-START RUNNER
 # ──────────────────────────────────────────────────────────────────
 
-class RunHistory:
-    """Tracks and compares all clustering runs in a session."""
+class IncrementalRunner:
+    """
+    Supports incremental updates: when new data arrives, re-runs only
+    the algorithms whose results might change, using warm-start where
+    possible (Mini-Batch K-Means, BIRCH).
+    """
+    WARM_START_ALGOS = {"minibatch_kmeans", "birch", "online_gmm"}
 
+    def __init__(self, base_runner: "ClusteringRunner"):
+        self._runner = base_runner
+        self._prev_results: Dict[str, "ClusteringResult"] = {}
+        self._prev_X_hash: Optional[str] = None
+
+    def update(self, algorithm_ids: List[str],
+               X_new: np.ndarray,
+               X_old_hash: Optional[str] = None) -> Dict[str, "ClusteringResult"]:
+        """
+        Update clustering with new data.
+        Returns merged result dict (old results updated where needed).
+        """
+        new_hash = hashlib.md5(X_new.data.tobytes()).hexdigest()[:12]
+        if new_hash == self._prev_X_hash and self._prev_results:
+            logger.info("Data unchanged — returning cached results")
+            return self._prev_results
+
+        # For warm-start capable algorithms, attempt partial update
+        warm_ids = [aid for aid in algorithm_ids if aid in self.WARM_START_ALGOS]
+        cold_ids = [aid for aid in algorithm_ids if aid not in self.WARM_START_ALGOS]
+
+        results = {}
+        if cold_ids:
+            batch = self._runner.run_algorithms(cold_ids, X_new)
+            results.update(batch.results)
+
+        # Warm-start: pass prev model to Mini-Batch KMeans
+        from clustering_registry import get_registry
+        for aid in warm_ids:
+            try:
+                prev_cr = self._prev_results.get(aid)
+                if prev_cr and prev_cr.succeeded and prev_cr.model is not None:
+                    model = prev_cr.model
+                    if hasattr(model, "partial_fit"):
+                        model.partial_fit(X_new)
+                        labels = model.predict(X_new)
+                    else:
+                        cr = self._runner.run_single(aid, X_new)
+                        labels = cr.labels
+                        model = cr.model
+                    from clustering_runner import ClusteringResult, RunStatus
+                    valid = labels[labels != -1]
+                    nk = len(np.unique(valid)) if len(valid) > 0 else 0
+                    results[aid] = ClusteringResult(
+                        algorithm_id=aid, algorithm_name=aid,
+                        algorithm_family="warm_start",
+                        labels=np.asarray(labels, dtype=np.int32),
+                        status=RunStatus.SUCCESS,
+                        runtime_seconds=0.0, n_clusters_found=nk,
+                        n_noise_points=int((labels == -1).sum()),
+                        noise_ratio=float((labels == -1).mean()),
+                        params_used={}, model=model,
+                    )
+                else:
+                    cr = self._runner.run_single(aid, X_new)
+                    results[aid] = cr
+            except Exception as e:
+                logger.warning(f"Warm-start failed for {aid}: {e}")
+                cr = self._runner.run_single(aid, X_new)
+                results[aid] = cr
+
+        self._prev_results = results
+        self._prev_X_hash = new_hash
+        return results
+
+
+# ──────────────────────────────────────────────────────────────────
+# PERFORMANCE LEADERBOARD
+# ──────────────────────────────────────────────────────────────────
+
+class PerformanceLeaderboard:
+    """
+    Tracks algorithm performance history across multiple datasets/runs.
+    Useful for identifying consistently well-performing algorithms
+    and building dataset-specific algorithm portfolios.
+    """
     def __init__(self):
         self._history: List[Dict[str, Any]] = []
-        self._run_counter = 0
 
-    def record(self, batch_result: BatchResult, tag: str = ""):
-        """Record a batch result into history."""
-        self._run_counter += 1
-        for r in batch_result.results:
-            entry = {
-                "run_id": self._run_counter,
-                "tag": tag,
-                "timestamp": time.time(),
-                "algorithm": r.algorithm_name,
-                "display_name": r.display_name,
-                "status": r.status.value,
-                "n_clusters": r.n_clusters_found,
-                "n_noise": r.n_noise,
-                "fit_time": r.fit_time_seconds,
-                "params": dict(r.params_used),
-                "error": r.error_message,
-            }
-            if r.status == RunStatus.SUCCESS and r.n_clusters_found >= 2:
-                try:
-                    from sklearn.metrics import silhouette_score as ss
-                    entry["silhouette"] = None
-                except Exception:
-                    entry["silhouette"] = None
-            self._history.append(entry)
+    def record(self, dataset_name: str,
+               eval_results: List[Any],
+               n_samples: int, n_features: int):
+        """Record evaluation results for one run."""
+        for er in eval_results:
+            self._history.append({
+                "dataset": dataset_name,
+                "algorithm": er.algorithm_id,
+                "algorithm_name": er.algorithm_name,
+                "composite_score": er.composite_score,
+                "silhouette": er.metric_value("silhouette"),
+                "n_clusters": er.n_clusters,
+                "rank": er.rank,
+                "n_samples": n_samples,
+                "n_features": n_features,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M"),
+            })
 
-    def to_dataframe(self) -> pd.DataFrame:
-        """Export full history as DataFrame."""
+    def top_algorithms(self, metric: str = "composite_score",
+                        top_n: int = 10) -> "pd.DataFrame":
+        import pandas as pd
         if not self._history:
             return pd.DataFrame()
-        return pd.DataFrame(self._history)
-
-    def get_best_by_metric(self, metric: str = "silhouette") -> Optional[Dict]:
-        """Return the best run entry by a given metric."""
-        valid = [h for h in self._history if h.get(metric) is not None]
-        if not valid:
-            return None
-        return max(valid, key=lambda x: x[metric])
-
-    def compare_runs(self, run_ids: Optional[List[int]] = None) -> pd.DataFrame:
-        """Compare specific runs or all runs side-by-side."""
-        df = self.to_dataframe()
-        if df.empty:
+        df = pd.DataFrame(self._history)
+        if metric not in df.columns:
             return df
-        if run_ids:
-            df = df[df["run_id"].isin(run_ids)]
-        return df.sort_values("run_id")
+        agg = df.groupby("algorithm_name")[metric].agg(
+            mean="mean", std="std", count="count",
+            best="max", worst="min"
+        ).round(4).reset_index()
+        return agg.sort_values("mean", ascending=False).head(top_n)
+
+    def win_rates(self) -> "pd.DataFrame":
+        """Fraction of runs where each algorithm ranked #1."""
+        import pandas as pd
+        if not self._history:
+            return pd.DataFrame()
+        df = pd.DataFrame(self._history)
+        wins = df[df["rank"] == 1].groupby("algorithm_name").size()
+        total = df.groupby("algorithm_name").size()
+        win_rate = (wins / total).fillna(0).round(4)
+        return win_rate.reset_index().rename(columns={0: "win_rate"}).sort_values(
+            "win_rate", ascending=False)
+
+    def to_dataframe(self) -> "pd.DataFrame":
+        import pandas as pd
+        return pd.DataFrame(self._history)
 
     def clear(self):
         self._history.clear()
-        self._run_counter = 0
-
-    @property
-    def n_runs(self) -> int:
-        return self._run_counter
-
-    @property
-    def n_entries(self) -> int:
-        return len(self._history)
 
 
 # ──────────────────────────────────────────────────────────────────
-# CONVERGENCE DIAGNOSTICS
+# ALGORITHM COMPLEXITY ESTIMATOR
 # ──────────────────────────────────────────────────────────────────
 
-class ConvergenceDiagnostics:
-    """Analyzes KMeans convergence: inertia trajectory, center drift, label stability."""
+class ComplexityEstimator:
+    """
+    Empirically estimates actual time complexity by running on subsets
+    and fitting power-law curve: T = a * n^b.
+    Predicts runtime for full dataset before committing.
+    """
+    def __init__(self, sample_sizes: Optional[List[int]] = None):
+        self.sample_sizes = sample_sizes or [200, 500, 1000, 2000]
 
-    def __init__(self, random_state: int = 42):
-        self.random_state = random_state
-
-    def trace_inertia(self, X: np.ndarray, n_clusters: int,
-                      max_iter: int = 100) -> Dict[str, Any]:
-        """Run KMeans step-by-step recording inertia at each iteration."""
-        rng = np.random.RandomState(self.random_state)
-        n, d = X.shape
-        idx = rng.choice(n, n_clusters, replace=False)
-        centers = X[idx].copy()
-        inertia_trace = []
-        center_drift = []
-        label_changes = []
-        prev_labels = None
-
-        for iteration in range(max_iter):
-            dists = np.linalg.norm(X[:, None, :] - centers[None, :, :], axis=2)
-            labels = np.argmin(dists, axis=1)
-            inertia = 0.0
-            new_centers = np.zeros_like(centers)
-            for c in range(n_clusters):
-                mask = labels == c
-                if mask.sum() > 0:
-                    new_centers[c] = X[mask].mean(axis=0)
-                    inertia += np.sum((X[mask] - new_centers[c]) ** 2)
-                else:
-                    new_centers[c] = centers[c]
-            inertia_trace.append(float(inertia))
-            drift = float(np.linalg.norm(new_centers - centers))
-            center_drift.append(drift)
-            if prev_labels is not None:
-                changes = int((labels != prev_labels).sum())
-                label_changes.append(changes)
-            else:
-                label_changes.append(n)
-            prev_labels = labels.copy()
-            centers = new_centers.copy()
-            if drift < 1e-10:
-                break
-
-        return {
-            "inertia_trace": inertia_trace,
-            "center_drift": center_drift,
-            "label_changes": label_changes,
-            "n_iterations": len(inertia_trace),
-            "final_inertia": inertia_trace[-1] if inertia_trace else 0.0,
-            "converged": center_drift[-1] < 1e-10 if center_drift else False,
-            "final_labels": labels,
-            "final_centers": centers,
-        }
-
-    def multi_init_comparison(self, X: np.ndarray, n_clusters: int,
-                              n_inits: int = 10) -> Dict[str, Any]:
-        """Run KMeans with multiple initializations and compare outcomes."""
-        results = []
-        for init in range(n_inits):
-            km = KMeans(n_clusters=n_clusters, n_init=1, max_iter=300,
-                        random_state=self.random_state + init)
-            km.fit(X)
-            results.append({
-                "init_seed": self.random_state + init,
-                "inertia": float(km.inertia_),
-                "n_iter": km.n_iter_,
-                "labels": km.labels_.copy(),
-                "centers": km.cluster_centers_.copy(),
-            })
-        inertias = [r["inertia"] for r in results]
-        best_idx = int(np.argmin(inertias))
-        return {
-            "results": results,
-            "best_init_index": best_idx,
-            "best_inertia": inertias[best_idx],
-            "worst_inertia": max(inertias),
-            "inertia_std": float(np.std(inertias)),
-            "inertia_range": max(inertias) - min(inertias),
-            "all_inertias": inertias,
-        }
-
-
-# ──────────────────────────────────────────────────────────────────
-# MULTI-OBJECTIVE SWEEP
-# ──────────────────────────────────────────────────────────────────
-
-class MultiObjectiveSweep:
-    """Sweep k-range optimizing multiple metrics simultaneously (Pareto front)."""
-
-    def __init__(self, registry: AlgorithmRegistry, config: RunConfig):
-        self.registry = registry
-        self.config = config
-        self.runner = TimeoutRunner(config.timeout_seconds)
-
-    def sweep(self, X: np.ndarray, algo_name: str,
-              k_range: Tuple[int, int],
-              metrics: Optional[List[str]] = None,
-              callback: Optional[Callable] = None) -> Dict[str, Any]:
-        """Run sweep and compute multiple metrics per k."""
-        from sklearn.metrics import davies_bouldin_score, calinski_harabasz_score
-        if metrics is None:
-            metrics = ["silhouette", "davies_bouldin", "calinski_harabasz"]
-        k_values = list(range(k_range[0], k_range[1] + 1))
-        base_params = self.registry.get_default_params(algo_name)
-        base_params["random_state"] = self.config.random_state
-        n_sample = min(5000, len(X))
-        results_per_k = []
-        for i, k in enumerate(k_values):
-            params = {**base_params, "n_clusters": k}
-            try:
-                model = self.registry.build(algo_name, params)
-                result = self.runner.run(model, X, algo_name, params)
-                row = {"k": k, "status": result.status.value}
-                if result.status == RunStatus.SUCCESS and result.n_clusters_found >= 2:
-                    labels = result.labels
-                    if "silhouette" in metrics:
-                        try:
-                            row["silhouette"] = float(silhouette_score(X, labels, sample_size=n_sample))
-                        except Exception:
-                            row["silhouette"] = -1.0
-                    if "davies_bouldin" in metrics:
-                        try:
-                            row["davies_bouldin"] = float(davies_bouldin_score(X, labels))
-                        except Exception:
-                            row["davies_bouldin"] = 999.0
-                    if "calinski_harabasz" in metrics:
-                        try:
-                            row["calinski_harabasz"] = float(calinski_harabasz_score(X, labels))
-                        except Exception:
-                            row["calinski_harabasz"] = 0.0
-                    row["fit_time"] = result.fit_time_seconds
-                    row["labels"] = labels
-                results_per_k.append(row)
-            except Exception as e:
-                results_per_k.append({"k": k, "status": "failed", "error": str(e)})
-            if callback:
-                callback(f"Multi-obj sweep k={k}", (i + 1) / len(k_values))
-
-        pareto = self._pareto_front(results_per_k, metrics)
-        return {
-            "results": results_per_k,
-            "pareto_front": pareto,
-            "k_values": k_values,
-            "metrics_used": metrics,
-        }
-
-    def _pareto_front(self, results: List[Dict], metrics: List[str]) -> List[Dict]:
-        """Extract Pareto-optimal solutions from sweep results."""
-        valid = [r for r in results if r.get("status") == "success"
-                 and all(m in r for m in metrics)]
-        if not valid:
-            return []
-        objectives = []
-        for r in valid:
-            obj = []
-            for m in metrics:
-                val = r[m]
-                if m == "davies_bouldin":
-                    obj.append(-val)
-                else:
-                    obj.append(val)
-            objectives.append(obj)
-        objs = np.array(objectives)
-        pareto = []
-        for i in range(len(valid)):
-            dominated = False
-            for j in range(len(valid)):
-                if i == j:
-                    continue
-                if np.all(objs[j] >= objs[i]) and np.any(objs[j] > objs[i]):
-                    dominated = True
-                    break
-            if not dominated:
-                pareto.append(valid[i])
-        return pareto
-
-
-# ──────────────────────────────────────────────────────────────────
-# ENSEMBLE RUNNER — Voting-based cluster ensemble
-# ──────────────────────────────────────────────────────────────────
-
-class EnsembleRunner:
-    """Creates ensemble clustering via majority-vote co-association."""
-
-    def __init__(self, registry: AlgorithmRegistry, config: RunConfig):
-        self.registry = registry
-        self.config = config
-        self.runner = ParallelRunner(registry, config)
-
-    def run_ensemble(self, X: np.ndarray, algorithms: List[str],
-                     n_clusters_final: int = 3,
-                     callback: Optional[Callable] = None) -> Dict[str, Any]:
-        """Run multiple algorithms and combine via co-association matrix."""
-        from scipy.cluster.hierarchy import linkage, fcluster
+    def estimate(self, algorithm_id: str,
+                 X: np.ndarray,
+                 n_clusters: int = 8) -> Dict[str, Any]:
+        """Returns predicted runtime for full n and complexity exponent b."""
+        import scipy.optimize as opt
+        from clustering_runner import SingleAlgorithmExecutor, RunnerConfig
+        config = RunnerConfig(n_clusters=n_clusters, timeout_seconds=30)
+        executor = SingleAlgorithmExecutor(config)
+        rng = np.random.default_rng(42)
         n = len(X)
-        co_matrix = np.zeros((n, n), dtype=np.float32)
-        n_valid = 0
-        individual_labels = {}
-        for i, algo in enumerate(algorithms):
-            result = self.runner.run_single(X, algo)
-            if result.status == RunStatus.SUCCESS:
-                labels = result.labels
-                individual_labels[algo] = labels
-                for ii in range(n):
-                    for jj in range(ii + 1, min(n, ii + 500)):
-                        if labels[ii] == labels[jj] and labels[ii] >= 0:
-                            co_matrix[ii, jj] += 1
-                            co_matrix[jj, ii] += 1
-                n_valid += 1
-            if callback:
-                callback(f"Ensemble {algo}", (i + 1) / len(algorithms))
-        if n_valid == 0:
-            return {"ensemble_labels": np.zeros(n, dtype=int), "n_valid": 0}
-        co_matrix /= max(n_valid, 1)
-        np.fill_diagonal(co_matrix, 1.0)
-        dist_matrix = 1.0 - co_matrix
-        np.fill_diagonal(dist_matrix, 0.0)
-        dist_matrix = np.maximum(dist_matrix, 0.0)
+
+        sizes_tested = [s for s in self.sample_sizes if s < n]
+        if not sizes_tested or len(sizes_tested) < 2:
+            return {"predicted_runtime_s": None, "exponent": None,
+                    "status": "insufficient_data"}
+
+        runtimes = []
+        for size in sizes_tested:
+            idx = rng.choice(n, size, replace=False)
+            cr = executor.run(algorithm_id, X[idx], {})
+            runtimes.append(cr.runtime_seconds if cr.succeeded else None)
+
+        valid = [(s, t) for s, t in zip(sizes_tested, runtimes) if t is not None and t > 1e-5]
+        if len(valid) < 2:
+            return {"predicted_runtime_s": None, "exponent": None,
+                    "status": "all_runs_failed"}
+
+        vs, vt = zip(*valid)
         try:
-            from scipy.spatial.distance import squareform
-            condensed = squareform(dist_matrix, checks=False)
-            Z = linkage(condensed, method="average")
-            ensemble_labels = fcluster(Z, t=n_clusters_final, criterion="maxclust") - 1
+            log_s = np.log(list(vs))
+            log_t = np.log(list(vt))
+            coeffs = np.polyfit(log_s, log_t, 1)
+            b = float(coeffs[0])  # complexity exponent
+            a = float(np.exp(coeffs[1]))
+            predicted = a * (n ** b)
         except Exception:
-            from sklearn.cluster import AgglomerativeClustering
-            ensemble_labels = AgglomerativeClustering(
-                n_clusters=n_clusters_final
-            ).fit_predict(dist_matrix)
+            predicted = None; b = None
 
         return {
-            "ensemble_labels": ensemble_labels,
-            "co_association_matrix": co_matrix,
-            "n_valid_algorithms": n_valid,
-            "individual_labels": individual_labels,
-            "algorithms_used": algorithms,
+            "sizes_tested": list(vs),
+            "runtimes_s": [round(t, 4) for t in vt],
+            "exponent_b": round(b, 3) if b is not None else None,
+            "complexity_class": self._classify_exponent(b) if b is not None else "unknown",
+            "predicted_runtime_s": round(float(predicted), 2) if predicted else None,
+            "status": "ok",
         }
 
-
-# ──────────────────────────────────────────────────────────────────
-# BENCHMARK SUITE — Compare algorithms across multiple datasets
-# ──────────────────────────────────────────────────────────────────
-
-class BenchmarkSuite:
-    """Benchmarks algorithms across multiple synthetic datasets."""
-
-    GENERATORS = {
-        "blobs_3": lambda rs: __import__("sklearn.datasets", fromlist=["make_blobs"]).make_blobs(
-            n_samples=500, centers=3, n_features=5, random_state=rs),
-        "blobs_7": lambda rs: __import__("sklearn.datasets", fromlist=["make_blobs"]).make_blobs(
-            n_samples=1000, centers=7, n_features=8, random_state=rs),
-        "moons": lambda rs: __import__("sklearn.datasets", fromlist=["make_moons"]).make_moons(
-            n_samples=500, noise=0.08, random_state=rs),
-        "circles": lambda rs: __import__("sklearn.datasets", fromlist=["make_circles"]).make_circles(
-            n_samples=500, noise=0.05, factor=0.5, random_state=rs),
-    }
-
-    def __init__(self, orchestrator: ClusteringOrchestrator):
-        self.orchestrator = orchestrator
-
-    def run(self, algorithms: List[str],
-            datasets: Optional[List[str]] = None,
-            callback: Optional[Callable] = None) -> pd.DataFrame:
-        """Run all algorithm × dataset combinations and return metric table."""
-        from sklearn.metrics import adjusted_rand_score
-        ds_names = datasets or list(self.GENERATORS.keys())
-        rows = []
-        total = len(ds_names) * len(algorithms)
-        step = 0
-        for ds_name in ds_names:
-            gen = self.GENERATORS.get(ds_name)
-            if gen is None:
-                continue
-            X, y_true = gen(42)
-            for algo in algorithms:
-                step += 1
-                try:
-                    result = self.orchestrator.runner.run_single(X, algo)
-                    row = {
-                        "Dataset": ds_name,
-                        "Algorithm": algo,
-                        "Status": result.status.value,
-                        "Clusters Found": result.n_clusters_found,
-                        "Time (s)": result.fit_time_seconds,
-                    }
-                    if result.status == RunStatus.SUCCESS and result.n_clusters_found >= 2:
-                        try:
-                            row["Silhouette"] = float(silhouette_score(X, result.labels,
-                                                                        sample_size=min(5000, len(X))))
-                        except Exception:
-                            row["Silhouette"] = None
-                        mask = result.labels >= 0
-                        if mask.sum() >= 2:
-                            try:
-                                row["ARI"] = float(adjusted_rand_score(y_true[mask], result.labels[mask]))
-                            except Exception:
-                                row["ARI"] = None
-                    rows.append(row)
-                except Exception as e:
-                    rows.append({"Dataset": ds_name, "Algorithm": algo,
-                                 "Status": "error", "Error": str(e)})
-                if callback:
-                    callback(f"Bench {ds_name}/{algo}", step / total)
-        return pd.DataFrame(rows)
+    @staticmethod
+    def _classify_exponent(b: float) -> str:
+        if b < 1.3:   return "O(n) — linear, very fast"
+        if b < 1.6:   return "O(n log n) — quasi-linear"
+        if b < 2.3:   return "O(n²) — quadratic, moderate"
+        if b < 2.8:   return "O(n²·k) — quadratic-plus"
+        return f"O(n^{b:.1f}) — super-quadratic, slow on large data"

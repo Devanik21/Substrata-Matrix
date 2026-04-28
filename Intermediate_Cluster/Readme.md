@@ -88,7 +88,8 @@ Algorithm tags: `fast`, `scalable`, `no_k_needed`, `noise_robust`, `probabilisti
 Standard Lloyd–Forgy algorithm minimising within-cluster sum of squares:
 
 ```math
-\underset{\{C_j\}}{\operatorname{arg\,min}} \sum_{j=1}^k \sum_{x_i \in C_j} \|x_i - \mu_j\|_2^2, \quad \mu_j = \frac{1}{|C_j|}\sum_{x_i \in C_j} x_i
+$$\min_{\{C_j\}} \sum_{j=1}^k \sum_{x_i \in C_j} \|x_i - \mu_j\|_2^2, \quad \mu_j = \frac{1}{|C_j|}\sum_{x_i \in C_j} x_i$$
+
 ```
 
 E-step: assign $c(i) = \arg\min_j \|x_i - \mu_j\|^2$. M-step: update centroids. Each iteration is a coordinate descent step guaranteeing non-increasing WCSS. Tags: `fast`, `deterministic`, `scalable`.
@@ -192,7 +193,8 @@ Phase 1: build CF tree. Phase 2: agglomerate leaf subclusters. Phase 3: reassign
 Top-down divisive hierarchical clustering. Starting from the full dataset, identifies the most dissimilar point and builds the "splinter group" by iteratively moving points:
 
 ```math
-d_{\mathrm{avg}}(x, S) = \frac{1}{|S|}\sum_{y \in S} d(x,y), \quad x^* = \underset{x \in C}{\operatorname{arg\,max}}\ \bigl[d_{\mathrm{avg}}(x, C) - d_{\mathrm{avg}}(x, S)\bigr]
+$$d_{\mathrm{avg}}(x, S) = \frac{1}{|S|}\sum_{y \in S} d(x,y), \quad x^* = \underset{x \in C}{\arg\max}\ \bigl[d_{\mathrm{avg}}(x, C) - d_{\mathrm{avg}}(x, S)\bigr]$$
+
 ```
 
 DIANA naturally handles elongated clusters and produces a balanced dendrogram in cases where AGNES is biased by chaining. The **diameter** of the resulting clusters satisfies a monotonicity property: $\mathrm{diam}(C_{\mathrm{parent}}) \geq \max(\mathrm{diam}(C_1), \mathrm{diam}(C_2))$.
@@ -369,7 +371,8 @@ The latent embedding $f_\phi$ learns a topology-aware compression superior to li
 SOM learns a discrete low-dimensional manifold (typically 2D grid) that maps the data topology. For each input $x$, the best-matching unit (BMU) is:
 
 ```math
-i^*(x) = \underset{i}{\operatorname{arg\,min}}\ \|x - w_i\|
+$$i^*(x) = \underset{i}{\arg\min}\ \|x - w_i\|$$
+
 ```
 
 Weights update with decaying learning rate $\alpha(t)$ and neighbourhood function $h(i, i^*, t)$:

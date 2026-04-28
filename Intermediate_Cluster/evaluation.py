@@ -1,11 +1,10 @@
 """
-evaluation.py — ClusterX Comprehensive Evaluation Framework
-=============================================================
-Computes, ranks, and interprets clustering quality metrics.
-Covers: internal indices, label-based measures, geometry diagnostics,
-        multi-metric ranking, and natural-language interpretation.
+evaluation.py — Substrata-Matrix Evaluation & Ranking Module
 
-Author: ClusterX Intelligence Lab
+Comprehensive metric computation, multi-dimensional ranking,
+and interpretability for clustering quality assessment. Covers
+internal indices, label-based measures, geometry diagnostics,
+and natural-language interpretation.
 """
 
 from __future__ import annotations

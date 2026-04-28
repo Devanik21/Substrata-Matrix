@@ -1,14 +1,9 @@
 """
-clustering_runner.py — ClusterX Parallel Execution Engine
-==========================================================
-Orchestrates execution of all clustering algorithms:
-- Sequential and parallel (joblib) execution
-- Per-algorithm timeout and error isolation
-- Result caching via hash keys
-- Progress callback support
-- Adaptive parameter tuning per dataset
+clustering_runner.py — Substrata-Matrix Execution Engine Module
 
-Author: ClusterX Intelligence Lab
+Orchestrates sequential and parallel execution of clustering algorithms
+with timeout isolation, error handling, caching, and adaptive
+parameter tuning per dataset characteristics.
 """
 
 from __future__ import annotations

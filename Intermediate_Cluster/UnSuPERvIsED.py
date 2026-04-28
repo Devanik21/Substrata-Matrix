@@ -1,23 +1,10 @@
 """
-UnSuPERvIsED.py — ClusterX Universal Clustering Intelligence Lab
-=================================================================   
-The definitive unsupervised learning workbench for data scientists.
-Dark. Fast. Intelligent. Comprehensive.
-     
-Sections:
-  0 · Home            — Hero dashboard, system stats, quick-start
-  1 · Data Ingestion  — Upload, preview, deep profiling
-  2 · Preprocessing   — Full pipeline config, smart recommendations
-  3 · Algorithm Arena — 60+ algo browser, smart selection, hyper-params
-  4 · Execution       — Parallel run engine, live progress tracking
-  5 · Results         — Rankings, metric tables, radar, heatmaps
-  6 · Visualization   — 2D/3D scatter, multi-embedding, pair plots
-  7 · Stability Lab   — Bootstrap, noise, persistence, ARI matrix
-  8 · Consensus Forge — Co-association, multi-method, diversity
-  9 · AI Oracle       — Gemini-powered insights for every section
- 10 · Advanced Tools  — k-sweep, feature importance, k-estimator, export
+UnSuPERvIsED.py — Substrata-Matrix Interactive Clustering Workbench
 
-Author: ClusterX Intelligence Lab + Xylia
+Streamlit-based interface orchestrating the complete clustering pipeline:
+data ingestion, preprocessing, algorithm selection, parallel execution,
+evaluation, visualization, stability analysis, consensus clustering,
+and interpretability.
 """
 
 # ─────────────────────────────────────────────────────────────────
@@ -44,11 +31,11 @@ from plotly.subplots import make_subplots
 
 # ── Streamlit page config (MUST be first st call) ────────────────
 st.set_page_config(
-    page_title="UnSuPERvIsED · ClusterX",
+    page_title="UnSuPERvIsED · Substrata-Matrix",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded",
-    menu_items={"About": "ClusterX — Universal Clustering Intelligence Lab"},
+    menu_items={"About": "Substrata-Matrix — Clustering Workbench"},
 )
 
 # ── Backend lazy imports ──────────────────────────────────────────

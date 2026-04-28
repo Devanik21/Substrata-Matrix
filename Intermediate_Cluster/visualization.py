@@ -1,22 +1,10 @@
 """
-visualization.py — ClusterX Master Visualization Engine
-=========================================================
-Produces production-quality Plotly figures for every stage
-of the clustering pipeline:
+visualization.py — Substrata-Matrix Visualization Engine Module
 
-  • 2D/3D scatter plots: PCA, UMAP, t-SNE, ISOMAP
-  • Metric comparison charts: radar, bar, heatmap, violin
-  • Stability visualisations: ARI surfaces, box plots, timelines
-  • Consensus visualisations: co-association heatmap, weight bars
-  • Algorithm ranking tables: annotated scorecards
-  • k-sweep elbow curves
-  • Cluster profile charts: size distribution, silhouette bars
-  • Feature importance for clustering
-  • Correlation matrices and PairGrid analogues
-  • Interactive dendrogram
-  • Dark-mode design system throughout
-
-Author: ClusterX Intelligence Lab
+Production-quality Plotly-based visualizations across the clustering
+pipeline: embedding methods (PCA, UMAP, t-SNE, ISOMAP), metric
+comparisons, stability analysis, consensus analysis, algorithm rankings,
+k-sweep analysis, cluster profiles, feature importance, and correlation matrices.
 """
 
 from __future__ import annotations

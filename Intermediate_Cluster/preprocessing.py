@@ -1,9 +1,9 @@
 """
-preprocessing.py — ClusterX Advanced Data Preprocessing Engine
-================================================================
-Handles: loading, profiling, imputation, outlier detection,
-         scaling, encoding, feature selection, and pipeline assembly.
-Author: ClusterX Intelligence Lab
+preprocessing.py — Substrata-Matrix Data Preprocessing Module
+
+Comprehensive data preprocessing pipeline including: data loading,
+profiling, imputation, outlier detection, scaling, encoding, 
+feature selection, and adaptive sample weighting.
 """
 
 from __future__ import annotations

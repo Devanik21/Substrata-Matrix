@@ -1,21 +1,9 @@
 """
-consensus.py — ClusterX Advanced Consensus Clustering Engine
-=============================================================
-Combines multiple clustering solutions into a single robust partition
-via co-association matrices, voting, graph-based reclustering,
-and Bayesian evidence accumulation.
+consensus.py — Substrata-Matrix Consensus Clustering Module
 
-Implements:
-  • Co-Association Matrix (CAM) construction
-  • Evidence Accumulation Clustering (EAC)
-  • Voting-based consensus
-  • Weighted consensus (metric-aware)
-  • Cluster-based Similarity Partitioning (CSPA)
-  • Meta-clustering consensus
-  • Consensus quality scoring
-  • Ensemble diversity analysis
-
-Author: ClusterX Intelligence Lab
+Advanced consensus clustering combining multiple solutions via
+co-association matrices, voting mechanisms, graph-based reclustering,
+Bayesian evidence accumulation, and consensus quality metrics.
 """
 
 from __future__ import annotations

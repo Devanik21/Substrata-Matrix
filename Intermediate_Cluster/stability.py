@@ -1,17 +1,10 @@
 """
-stability.py — ClusterX Robustness & Stability Analysis Engine
-===============================================================
-Measures how stable a clustering solution is under perturbations:
-  • Bootstrap resampling stability
-  • Gaussian / Laplacian noise injection
-  • Feature dropout stability
-  • Subset sampling stability
-  • Hyperparameter sensitivity analysis
-  • Cluster-level persistence profiling
-  • Label agreement surfaces
-  • Stability scorecards & rankings
+stability.py — Substrata-Matrix Robustness & Stability Analysis Module
 
-Author: ClusterX Intelligence Lab
+Comprehensive stability assessment of clustering solutions via:
+bootstrap resampling, noise injection, feature dropout, subset sampling,
+hyperparameter sensitivity, cluster-level persistence profiling,
+and stability scorecards.
 """
 
 from __future__ import annotations

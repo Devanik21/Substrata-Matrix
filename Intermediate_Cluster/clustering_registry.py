@@ -1,13 +1,9 @@
 """
-clustering_registry.py — ClusterX Universal Algorithm Registry
-===============================================================
-Registers, configures, and describes every clustering algorithm
-available in the system — 60+ algorithms across 12 families.
-Each algorithm is wrapped in a standardised AlgorithmSpec that
-carries metadata, default hyper-parameters, constraints, and a
-factory function that returns a fitted sklearn-compatible estimator.
+clustering_registry.py — Substrata-Matrix Algorithm Registry Module
 
-Author: ClusterX Intelligence Lab
+Registry and factory system for 60+ clustering algorithms across
+12 families. Each algorithm encapsulated in standardized AlgorithmSpec
+with metadata, hyperparameters, constraints, and instantiation logic.
 """
 
 from __future__ import annotations

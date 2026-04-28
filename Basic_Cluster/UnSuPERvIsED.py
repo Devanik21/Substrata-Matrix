@@ -331,7 +331,40 @@ div[data-testid="stNotification"] {
     color: var(--text-primary) !important;
 }
 </style>
+
+/* 1. Fix the sidebar collapse icon rendering as text */
+.material-symbols-rounded, 
+.material-symbols-outlined, 
+.material-icons, 
+[data-testid="collapsedControl"] span,
+[data-testid="stSidebarCollapseButton"] span,
+[class*="stIcon"] {
+    font-family: 'Material Symbols Rounded', 'Material Icons', sans-serif !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+/* 2. Remove the forced custom dropdown icons to stop the clash */
+div[data-baseweb="select"] > div::after,
+div[data-baseweb="select"] > div::before,
+.stSelectbox > div > div::after,
+.stMultiSelect > div > div::after {
+    display: none !important;
+    content: none !important;
+}
+
+/* 3. Ensure Streamlit's original, modern SVG arrows remain perfectly visible */
+div[data-baseweb="select"] svg {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
 """
+
+
 st.markdown(MASTER_CSS, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────────

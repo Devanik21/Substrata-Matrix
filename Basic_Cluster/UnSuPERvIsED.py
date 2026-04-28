@@ -2,7 +2,7 @@
 UnSuPERvIsED.py — Substrata-Matrix Interactive Clustering Workbench
 
 Streamlit application for comprehensive cluster analysis including algorithm
-selection, preprocessing, parallel execution, evaluation, visualization,    
+selection, preprocessing, parallel execution, evaluation, visualization,
 stability analysis, and consensus clustering.
 """
 
@@ -81,10 +81,6 @@ st.set_page_config(
         "About": "UnSuPERvIsED v1.0 — The world's most advanced clustering platform.",
     },
 )
-
-# ──────────────────────────────────────────────────────────────────
-# DARK THEME CSS
-# ──────────────────────────────────────────────────────────────────
 
 # ──────────────────────────────────────────────────────────────────
 # DARK THEME CSS
@@ -334,49 +330,8 @@ div[data-testid="stNotification"] {
     border: 1px solid var(--border) !important;
     color: var(--text-primary) !important;
 }
-
-/* ────────────────────────────────────────────────────────────────── */
-/* ZERO PERCENT CHEAT COMPONENT SANITIZATION */
-/* ────────────────────────────────────────────────────────────────── */
-
-/* 1. Fix the sidebar collapse icon rendering as text */
-.material-symbols-rounded, 
-.material-symbols-outlined, 
-.material-icons, 
-[data-testid="collapsedControl"] span,
-[data-testid="stSidebarCollapseButton"] span,
-button[kind="header"] span,
-[class*="stIcon"] {
-    font-family: 'Material Symbols Rounded', 'Material Icons', sans-serif !important;
-    font-style: normal !important;
-    font-variant: normal !important;
-    text-transform: none !important;
-    -webkit-font-smoothing: antialiased !important;
-}
-
-/* 2. Strip any custom background images / pseudo-elements in dropdowns */
-div[data-baseweb="select"], 
-div[data-baseweb="select"] > div {
-    background-image: none !important;
-}
-div[data-baseweb="select"] *::after,
-div[data-baseweb="select"] *::before {
-    content: none !important;
-    display: none !important;
-}
-
-/* 3. Force Streamlit's native SVG arrow to be visible and correctly colored */
-div[data-baseweb="select"] svg {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    fill: currentColor !important;
-}
-
 </style>
 """
-
-
 st.markdown(MASTER_CSS, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────────

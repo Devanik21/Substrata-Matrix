@@ -330,37 +330,28 @@ div[data-testid="stNotification"] {
     border: 1px solid var(--border) !important;
     color: var(--text-primary) !important;
 }
+/* --- STRICT DROPDOWN SANITIZATION --- */
 
-/* 1. Fix the sidebar collapse icon rendering as text */
-.material-symbols-rounded, 
-.material-symbols-outlined, 
-.material-icons, 
-[data-testid="collapsedControl"] span,
-[data-testid="stSidebarCollapseButton"] span,
-[class*="stIcon"] {
-    font-family: 'Material Symbols Rounded', 'Material Icons', sans-serif !important;
-    font-style: normal !important;
-    font-variant: normal !important;
-    text-transform: none !important;
-    -webkit-font-smoothing: antialiased !important;
+/* 1. Strip any custom background images (often used for custom arrows) */
+div[data-baseweb="select"], 
+div[data-baseweb="select"] > div {
+    background-image: none !important;
 }
 
-/* 2. Remove the forced custom dropdown icons to stop the clash */
-div[data-baseweb="select"] > div::after,
-div[data-baseweb="select"] > div::before,
-.stSelectbox > div > div::after,
-.stMultiSelect > div > div::after {
-    display: none !important;
+/* 2. Annihilate all injected pseudo-elements inside the select box */
+div[data-baseweb="select"] *::after,
+div[data-baseweb="select"] *::before {
     content: none !important;
+    display: none !important;
 }
 
-/* 3. Ensure Streamlit's original, modern SVG arrows remain perfectly visible */
+/* 3. Force Streamlit's native SVG arrow to be visible and correctly colored */
 div[data-baseweb="select"] svg {
     display: block !important;
-    opacity: 1 !important;
     visibility: visible !important;
+    opacity: 1 !important;
+    fill: currentColor !important;
 }
-
 </style>
 
 """

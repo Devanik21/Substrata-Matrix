@@ -1,9 +1,9 @@
 """
 consensus.py — Substrata-Matrix Consensus Clustering Module
 
-Advanced consensus clustering combining multiple solutions via
-co-association matrices, voting mechanisms, graph-based reclustering,
-Bayesian evidence accumulation, and consensus quality metrics.
+Combines multiple clustering solutions via co-association matrices,
+voting mechanisms, graph-based reclustering, and Bayesian evidence
+accumulation.
 """
 
 from __future__ import annotations

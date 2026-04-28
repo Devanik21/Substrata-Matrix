@@ -1,10 +1,8 @@
 """
-stability_consensus.py — ClusterX Stability Analysis & Consensus Clustering
-=============================================================================
-Handles: bootstrap stability, Jaccard stability, consensus matrix,
-         perturbation analysis, PAC score, consensus clustering (HAC),
-         and full stability pipeline orchestration.
-Author: ClusterX Intelligence Lab
+stability_consensus.py — Substrata-Matrix Stability & Consensus Module
+
+Bootstrap stability analysis, perturbation response, consensus matrix
+construction, PAC scoring, and hierarchical consensus clustering.
 """
 
 from __future__ import annotations

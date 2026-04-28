@@ -1,10 +1,9 @@
 """
 stability.py — Substrata-Matrix Robustness & Stability Analysis Module
 
-Comprehensive stability assessment of clustering solutions via:
-bootstrap resampling, noise injection, feature dropout, subset sampling,
-hyperparameter sensitivity, cluster-level persistence profiling,
-and stability scorecards.
+Bootstrap resampling, noise injection, feature dropout, subset sampling,
+hyperparameter sensitivity, cluster-level persistence profiling, and
+stability assessment.
 """
 
 from __future__ import annotations

@@ -1,542 +1,690 @@
+#  UnSuPERvIsED — Master Clustering Intelligence Reference
 
-# 🧬 UnSuPERvIsED-II — Advanced Clustering Intelligence System
+<img width="1672" height="941" alt="ChatGPT Image Apr 28, 2026, 07_41_12 PM" src="https://github.com/user-attachments/assets/b4e86343-154a-41d6-b37a-757e2acfc214" />
 
-> *"Sixty algorithms. Twelve families. One orchestration engine. Zero compromises."*
 
----
+> *"Structure is not imposed on data — it is discovered within it."*
 
-## About This Repository
-
-**Author:** Devanik (GitHub: [Devanik21](https://github.com/Devanik21))
-**Repository:** [Substrata-Matrix](https://github.com/Devanik21/Substrata-Matrix) · `Intermediate_Cluster/` · May 2026
+**Author:** Devanik · [GitHub: Devanik21](https://github.com/Devanik21)
+**Repository:** [Substrata-Matrix](https://github.com/Devanik21/Substrata-Matrix)
 **Affiliation:** Electronics & Communication Engineering, NIT Agartala · Samsung ISWDP Fellow (IISc, 98.58th percentile)
 
-UnSuPERvIsED-II is the **second-generation, architecturally advanced** iteration of the *UnSuPERvIsED* series — a production-grade unsupervised clustering intelligence platform that orchestrates **60+ algorithms across 12 algorithmic families** through a unified, cache-aware, adaptive execution engine. This version substantially extends the foundation of UnSuPERvIsED-I with: neural and deep-learning-based clustering, fuzzy and possibilistic approaches, manifold-embedding pipelines, ensemble and subspace methods, grid-based density estimation, message-passing frameworks, adaptive parameter tuning, Pareto-front multi-objective ranking, and a fully refactored stability engine supporting Gaussian and Laplacian perturbation, persistence analysis, and stability grade certification. The entire system spans **~14,700 lines** of rigorously structured Python.
+---
+
+## Table of Contents
+
+1. [Series Overview](#series-overview)
+2. [Architecture Comparison](#architecture-comparison)
+3. [Mathematical Foundations of Clustering](#mathematical-foundations-of-clustering)
+4. [Algorithm Library — All Families](#algorithm-library)
+   - [Centroid / Partitional Family](#centroid--partitional-family)
+   - [Hierarchical Family](#hierarchical-family)
+   - [Density Family](#density-family)
+   - [Distribution / Model-Based Family](#distribution--model-based-family)
+   - [Graph & Spectral Family](#graph--spectral-family)
+   - [Neural / Deep Family](#neural--deep-family)
+   - [Fuzzy Family](#fuzzy-family)
+   - [Manifold Family](#manifold-family)
+   - [Subspace & Ensemble Families](#subspace--ensemble-families)
+   - [Grid-Based Family](#grid-based-family)
+5. [Evaluation Framework](#evaluation-framework)
+   - [Internal Validity Indices](#internal-validity-indices)
+   - [External Validity Indices](#external-validity-indices)
+   - [Composite Ranking & Pareto Front](#composite-ranking--pareto-front)
+6. [Preprocessing Pipeline](#preprocessing-pipeline)
+7. [Stability & Consensus Analysis](#stability--consensus-analysis)
+8. [AI Integration — Gemini Oracle](#ai-integration--gemini-oracle)
+9. [Visualisation Suite](#visualisation-suite)
+10. [Dashboard Architecture](#dashboard-architecture)
+11. [Installation & Usage](#installation--usage)
+12. [Dependencies](#dependencies)
+13. [Citation](#citation)
+14. [References](#references)
 
 ---
 
-## What Is UnSuPERvIsED-II?
+## Series Overview
 
-UnSuPERvIsED-II (`Intermediate_Cluster/`) delivers a complete clustering research and deployment environment. Every algorithmic family known in the literature is represented; the execution engine automatically classifies dataset size, blacklists incompatible algorithms, and schedules runs adaptively. A thread-safe LRU result cache avoids redundant computation. The evaluation layer provides internal indices, external label-agreement measures, Pareto-front selection, and k-sweep trend analysis. The stability engine operates under five distinct perturbation regimes and issues graded robustness certificates.
+The **UnSuPERvIsED** series is a production-grade unsupervised machine learning platform built for rigorous scientific exploration of clustering algorithms. It provides a unified dark-themed Streamlit dashboard covering the complete unsupervised learning pipeline: data ingestion, preprocessing, algorithm execution, multi-metric evaluation, stability certification, consensus clustering, dimensionality reduction, interactive visualisation, and AI-powered analysis.
 
-### Module Architecture
+| Property | UnSuPERvIsED-I (`Basic_Cluster/`) | UnSuPERvIsED-II (`Intermediate_Cluster/`) |
+|----------|-----------------------------------|-------------------------------------------|
+| Version | 1.0 · May 2025 | 2.0 · May 2026 |
+| Codebase | ~12,000 lines | ~14,700 lines |
+| Algorithms | 19 | 60+ |
+| Families | 7 | 12 |
+| Stability regimes | 3 | 5 |
+| External metrics | — | ARI, AMI, NMI, Purity |
+| Pareto front | — | ✓ |
+| Neural clustering | — | Autoencoder + K-Means, SOM |
+| Fuzzy clustering | — | FCM, PCM |
+| Manifold pipelines | — | Isomap, LLE, UMAP+HDBSCAN |
+| AI assistant | Gemini Flash Lite (tab) | Gemini 2.0 Flash Lite (Oracle page) |
+| LRU result cache | Disk-based | In-memory, thread-safe (200 entries) |
+| Adaptive param tuning | — | DBSCANParamTuner |
+| Stability grades | A/B/C/D | S+/A/B/C/D |
+| Persistence analysis | — | ✓ |
+
+---
+
+## Architecture Comparison
+
+### UnSuPERvIsED-I Module Map
 
 | Module | Role | Lines |
 |--------|------|-------|
-| `UnSuPERvIsED.py` | Streamlit orchestrator, lazy loading, dark-theme UI | ~3,558 |
-| `clustering_registry.py` | 60+ algorithm specs, tags, factory system, 12 families | ~1,967 |
-| `clustering_runner.py` | Cache-aware parallel runner, adaptive scheduling, timeout | ~1,367 |
-| `evaluation.py` | Internal/external metrics, composite scorer, Pareto front | ~1,341 |
-| `preprocessing.py` | Multi-stage preprocessing, outlier detection, encoding | ~1,506 |
-| `stability.py` | 5-regime stability testing, persistence analysis, grading | ~1,635 |
-| `consensus.py` | Co-association matrices, PAC, cophenetic correlation | ~1,561 |
-| `visualization.py` | 30+ Plotly charts, dark-theme CSS, interactive widgets | ~1,763 |
+| `UnSuPERvIsED.py` | Streamlit orchestrator, session state | ~2,144 |
+| `clustering_registry.py` | Algorithm registry, factory functions | ~1,131 |
+| `clustering_runner.py` | Parallel execution, timeout, elbow/gap | ~1,174 |
+| `evaluation.py` | Metric engine, ranking, profiling | ~1,073 |
+| `preprocessing.py` | Multi-stage preprocessing pipeline | ~1,059 |
+| `stability.py` | Bootstrap stability, perturbation | ~1,634 |
+| `stability_consensus.py` | Consensus matrices, PAC, cophenetic | ~1,061 |
+| `visualization.py` | 25+ Plotly visualisations, dark theme | ~1,116 |
+
+### UnSuPERvIsED-II Module Map
+
+| Module | Role | Lines |
+|--------|------|-------|
+| `UnSuPERvIsED.py` | Streamlit orchestrator, lazy loading | ~3,558 |
+| `clustering_registry.py` | 60+ specs, 12 families, tags, factory | ~1,967 |
+| `clustering_runner.py` | Cache-aware adaptive scheduler | ~1,367 |
+| `evaluation.py` | Internal + external metrics, Pareto | ~1,341 |
+| `preprocessing.py` | Multi-stage pipeline + deep profiling | ~1,506 |
+| `stability.py` | 5-regime stability, persistence | ~1,635 |
+| `consensus.py` | Co-association, PAC, cophenetic | ~1,561 |
+| `visualization.py` | 30+ Plotly charts, dark-theme CSS | ~1,763 |
 
 ---
 
-## Algorithm Library — 60+ Algorithms Across 12 Families
+## Mathematical Foundations of Clustering
 
-### Family Taxonomy
+### The Clustering Problem
 
-```
-AlgorithmFamily (12 families)
-├── CENTROID         — Centroid-Based         (6 algorithms)
-├── HIERARCHICAL     — Hierarchical           (7 algorithms)
-├── DENSITY          — Density-Based          (5 algorithms)
-├── DISTRIBUTION     — Distribution-Based     (5 algorithms)
-├── GRAPH            — Graph-Based / Spectral (5 algorithms)
-├── MESSAGE_PASSING  — Message-Passing        (1 algorithm)
-├── NEURAL           — Neural / Deep          (2 algorithms)
-├── SUBSPACE         — Subspace               (2 algorithms)
-├── ENSEMBLE         — Ensemble               (2 algorithms)
-├── FUZZY            — Fuzzy                  (2 algorithms)
-├── GRID             — Grid-Based             (1 algorithm)
-└── MANIFOLD         — Manifold               (3 algorithms)
-    + EXTRA          — Additional             (6 algorithms)
-```
+Given a dataset $X = \{x_1, x_2, \ldots, x_n\} \subset \mathbb{R}^d$, clustering seeks a partition $\mathcal{C} = \{C_1, C_2, \ldots, C_k\}$ such that $\bigcup_j C_j = X$, $C_j \cap C_l = \emptyset$ for $j \neq l$, and some objective function $\mathcal{F}(\mathcal{C})$ is extremised.
 
-Each `AlgorithmSpec` carries a rich metadata schema:
+The **fundamental trade-off** in all clustering is between *intra-cluster cohesion* and *inter-cluster separation*. Formally, let the within-cluster scatter and between-cluster scatter matrices be:
 
-```python
-@dataclass
-class AlgorithmSpec:
-    id: str                         # Unique snake_case identifier
-    name: str                       # Human-readable name
-    family: AlgorithmFamily         # One of 12 families
-    tags: List[AlgorithmTag]        # fast, scalable, no_k, noise_robust, ...
-    description: str
-    paper_ref: str                  # Primary academic citation
-    time_complexity: ComplexityClass
-    space_complexity: ComplexityClass
-    hyper_params: List[HyperParam]  # Full hyperparameter descriptors
-    min_samples: int
-    max_recommended_samples: int
-    max_recommended_features: int
-    produces_noise_label: bool      # Whether algorithm outputs -1 (noise)
-    requires_n_clusters: bool
-    factory: Callable               # factory(**params) → sklearn-compatible estimator
-```
+$$W_k = \sum_{j=1}^k \sum_{x \in C_j} (x - \mu_j)(x - \mu_j)^\top$$
 
-Algorithm tags: `fast`, `scalable`, `no_k_needed`, `noise_robust`, `probabilistic`, `hierarchical`, `online`, `gpu_ready`, `deterministic`, `shape_agnostic`, `high_dimensional`, `small_data`.
+$$B_k = \sum_{j=1}^k n_j (\mu_j - \bar{x})(\mu_j - \bar{x})^\top$$
+
+where $\mu_j = \frac{1}{|C_j|} \sum_{x \in C_j} x$ is the centroid of cluster $j$ and $\bar{x} = \frac{1}{n}\sum_i x_i$ is the grand mean. The total scatter matrix satisfies the identity $T = W_k + B_k$ regardless of the partition. Good clustering maximises $\text{tr}(B_k)$ and minimises $\text{tr}(W_k)$ simultaneously.
+
+### Clusterability — Hopkins Statistic
+
+Before running any algorithm, clusterability of the data is assessed via the **Hopkins statistic**. Let $m \ll n$ points $\{u_i\}$ be sampled uniformly from the data bounding box, and let $\{w_i\}$ be $m$ randomly chosen data points. Define:
+
+$$H = \frac{\sum_{i=1}^m u_i^d}{\sum_{i=1}^m u_i^d + \sum_{i=1}^m w_i^d}$$
+
+where $u_i = \min_{x \in X} \|u_i - x\|$ is the nearest-data-point distance for each uniform sample, and $w_i$ is the nearest-other-data-point distance. Under a completely random (Poisson) spatial distribution in $\mathbb{R}^d$:
+
+$$H \sim \text{Beta}(m, m), \quad \mathbb{E}[H] = 0.5$$
+
+Strong clustering pushes $H \to 1$ because data points are close to each other (small $w_i$) while uniformly random points are far from data (large $u_i$). The null hypothesis of spatial randomness is rejected when $H > 0.75$ at the 0.05 significance level.
+
+### Partition Entropy
+
+The **information content** of a clustering assignment is:
+
+$$\mathcal{H}(\mathcal{C}) = -\sum_{j=1}^k \frac{n_j}{n} \log_2 \frac{n_j}{n}$$
+
+A perfectly balanced clustering achieves $\mathcal{H} = \log_2 k$ (maximum); a degenerate single-cluster solution yields $\mathcal{H} = 0$.
 
 ---
 
-### Family I — Centroid-Based
+## Algorithm Library
 
-**K-Means** (`kmeans`)
+### Full Family Taxonomy
 
-Standard Lloyd–Forgy algorithm minimising within-cluster sum of squares:
+```
+UnSuPERvIsED Algorithm Registry
+├── I.  CENTROID / PARTITIONAL  (6 algorithms in v2, 4 in v1)
+├── II. HIERARCHICAL            (7 algorithms in v2, 3 in v1)
+├── III.DENSITY                 (5 algorithms in v2, 4 in v1)
+├── IV. DISTRIBUTION            (5 algorithms in v2, 2 in v1)
+├── V.  GRAPH / SPECTRAL        (5 algorithms in v2, 1 in v1)
+├── VI. NEURAL / DEEP           (2 algorithms, v2 only)
+├── VII.FUZZY                   (2 algorithms, v2 only)
+├── VIII.MANIFOLD               (3 algorithms, v2 only)
+├── IX. SUBSPACE                (2 algorithms, v2 only)
+├── X.  ENSEMBLE                (2 algorithms, v2 only)
+├── XI. GRID                    (1 algorithm,  v2 only)
+└── XII.EXTRA                   (6 algorithms, v2 only)
+```
 
-```math
+---
+
+### Centroid / Partitional Family
+
+#### K-Means
+
+Given $n$ points and $k$ clusters, K-Means minimises the within-cluster sum of squares (WCSS):
+
 $$\min_{\{C_j\}} \sum_{j=1}^k \sum_{x_i \in C_j} \|x_i - \mu_j\|_2^2, \quad \mu_j = \frac{1}{|C_j|}\sum_{x_i \in C_j} x_i$$
 
-```
+The **Lloyd–Forgy** algorithm performs coordinate descent on this objective via alternating steps. The **E-step** assigns each point to its nearest centroid:
 
-E-step: assign $c(i) = \arg\min_j \|x_i - \mu_j\|^2$. M-step: update centroids. Each iteration is a coordinate descent step guaranteeing non-increasing WCSS. Tags: `fast`, `deterministic`, `scalable`.
+$$c(i) = \arg\min_{j \in \{1,\ldots,k\}} \|x_i - \mu_j\|_2^2$$
 
----
+The **M-step** recomputes centroids as cluster means. Each step is individually globally optimal given the other, so the WCSS is non-increasing at every iteration. Since the number of distinct partitions is at most $k^n$, convergence to a local minimum in finite steps is guaranteed. The WCSS decrease per iteration satisfies:
 
-**K-Means++** (`kmeans_pp`)
+$$\mathcal{L}^{(t+1)} \leq \mathcal{L}^{(t)}, \quad \mathcal{L}^{(t)} = \sum_{j=1}^k \sum_{x_i \in C_j^{(t)}} \|x_i - \mu_j^{(t)}\|^2$$
 
-Initialisation-enhanced K-Means. Seeding draws $c_1$ uniformly; each subsequent centroid is drawn with probability:
+**K-Means++ initialisation** provides an approximation guarantee. The first centroid is drawn uniformly; each subsequent centroid $c_l$ is drawn with probability:
 
-```math
-P(x_i) \propto \min_{j < l} \|x_i - c_j\|^2
-```
+$$P(x_i) \propto \min_{j < l} \|x_i - c_j\|^2$$
 
-This $D^2$ weighting provides the approximation guarantee:
+This $D^2$-weighting ensures:
 
-```math
-\mathbb{E}[\mathrm{WCSS}_{k\text{-means}++}] \leq 8(\ln k + 2)\cdot \mathrm{WCSS}_{\mathrm{OPT}}
-```
+$$\mathbb{E}[\text{WCSS}_{k\text{-means}++}] \leq 8(\ln k + 2) \cdot \text{WCSS}_\text{OPT}$$
 
-dramatically reducing convergence to poor local minima.
+The **Elkan variant** avoids redundant distance calculations using the triangle inequality: $\|x - c_j\| \geq \max(0,\ \|x - c_i\| - \|c_i - c_j\|)$.
 
----
-
-**MiniBatch K-Means** (`minibatch_kmeans`)
-
-Stochastic gradient descent on WCSS. Per-centre learning rate $\eta_{c_j} = 1/n_{c_j}$. Each iteration processes batch $\mathcal{B}$ of size $b$:
-
-```math
-\mu_j \leftarrow (1 - \eta_{c_j})\,\mu_j + \eta_{c_j}\cdot \overline{x}_{\mathcal{B},j}
-```
-
-The harmonic decay satisfies Robbins-Monro conditions, guaranteeing almost-sure convergence. Tags: `fast`, `scalable`, `online`.
+- **Complexity:** $O(nkdT)$ time, $O(kd)$ space
+- **Parameters:** `n_clusters`, `init`, `n_init`, `max_iter`, `tol`, `algorithm`
 
 ---
 
-**Bisecting K-Means** (`bisecting_kmeans`)
+#### K-Means Auto (v2)
 
-Divisive strategy. At each step: (1) select $C^* = \arg\max_j \mathrm{WCSS}(C_j)$; (2) apply 2-means to $C^*$; (3) repeat until $k$ clusters. Total WCSS decreases monotonically at every bisection, avoiding global-initialisation fragility.
+Estimates the optimal $k$ via BIC on a spherical GMM approximation, then runs K-Means++:
 
----
+$$\text{BIC}(k) = -2 \hat{\mathcal{L}}(X;\, \hat{\theta}_k) + p_k \ln n, \quad p_k = k(d+1)$$
 
-**K-Medoids** (`kmedoids`)
-
-Medoids $m_j \in X$ minimise:
-
-```math
-\sum_{i=1}^n d\!\left(x_i,\, m_{c(i)}\right)
-```
-
-for arbitrary metric $d$. PAM: iterative swap of medoid $m_j$ with non-medoid $x_h$, accepted if total cost decreases. Tags: `noise_robust`, `shape_agnostic`.
+The selected cluster count is $k^* = \arg\min_k \text{BIC}(k)$.
 
 ---
 
-**K-Means Auto** (`kmeans_auto`)
+#### MiniBatch K-Means
 
-Bandwidth-adaptive K-Means that estimates the optimal $k$ via BIC on a Gaussian mixture model approximation, then runs K-Means++ at the selected $k$. Internal BIC criterion:
+Stochastic gradient descent on WCSS. Each iteration processes a batch $\mathcal{B}$ of size $b \ll n$. The per-centre update uses a decreasing learning rate $\eta_{c_j} = 1/(1+n_{c_j})$ where $n_{c_j}$ counts prior assignments:
 
-```math
-\mathrm{BIC}(k) = -2\mathcal{L}(X;\, \hat{\theta}_k) + p_k \ln n
-```
+$$\mu_j \leftarrow (1 - \eta_{c_j})\,\mu_j + \eta_{c_j}\,\bar{x}_{\mathcal{B},j}$$
 
-where $p_k = k(d + 1)$ is the number of free parameters (means + spherical variance per cluster). The selected $k^* = \arg\min_k \mathrm{BIC}(k)$.
+where $\bar{x}_{\mathcal{B},j}$ is the mean of batch points assigned to centre $j$. The harmonic decay satisfies Robbins-Monro convergence conditions: $\sum_t \eta_t = \infty$ and $\sum_t \eta_t^2 < \infty$.
 
----
-
-### Family II — Hierarchical
-
-**Agglomerative Clustering** (4 linkages: ward, complete, average, single)
-
-Bottom-up merging with four linkage criteria. Ward linkage cost:
-
-```math
-\Delta(A, B) = \frac{n_A\, n_B}{n_A + n_B}\|\mu_A - \mu_B\|^2
-```
-
-Unified **Lance–Williams recurrence** for distance updates to merged cluster $A \cup B$ from $C$:
-
-```math
-D(A \cup B,\, C) = \alpha_A\, D(A,C) + \alpha_B\, D(B,C) + \beta\, D(A,B) + \gamma\,|D(A,C) - D(B,C)|
-```
-
-with family-specific coefficients $(\alpha_A, \alpha_B, \beta, \gamma)$. This enables $O(n^2 \log n)$ priority-queue implementations.
+- **Complexity:** $O(bkd)$ per step, viable for $n > 10^6$
 
 ---
 
-**BIRCH** (`birch`)
+#### K-Medoids (PAM)
 
-CF-tree with $O(n)$ complexity. Clustering Feature: $CF = (n, LS, SS)$ supports $O(1)$ merging. Maximum subcluster radius constraint:
+Medoids $m_j$ must be actual data points, minimising total dissimilarity for arbitrary metric $d$:
 
-```math
-R = \sqrt{\frac{SS}{n} - \left\|\frac{LS}{n}\right\|^2} \leq \theta
-```
+$$\min_{m \subset X,\, |m|=k} \sum_{j=1}^k \sum_{x_i \in C_j} d(x_i,\, m_j)$$
 
-Phase 1: build CF tree. Phase 2: agglomerate leaf subclusters. Phase 3: reassign.
+The **PAM** (Partitioning Around Medoids) algorithm evaluates the swap cost for every (medoid $m_j$, non-medoid $x_h$) pair:
 
----
+$$\Delta_{jh} = \sum_{i=1}^n \left[ d(x_i,\, m_{c(i)}^{\text{new}}) - d(x_i,\, m_{c(i)}) \right]$$
 
-**DIANA — Divisive Analysis** (`diana_divisive`)
+and accepts the swap minimising $\Delta_{jh} < 0$. Unlike K-Means, K-Medoids is robust to outliers and works with non-Euclidean distances (Jaccard, cosine, DTW, Earth Mover's).
 
-Top-down divisive hierarchical clustering. Starting from the full dataset, identifies the most dissimilar point and builds the "splinter group" by iteratively moving points:
-
-```math
-$$d_{\mathrm{avg}}(x, S) = \frac{1}{|S|}\sum_{y \in S} d(x,y), \quad x^* = \underset{x \in C}{\arg\max}\ \bigl[d_{\mathrm{avg}}(x, C) - d_{\mathrm{avg}}(x, S)\bigr]$$
-
-```
-
-DIANA naturally handles elongated clusters and produces a balanced dendrogram in cases where AGNES is biased by chaining. The **diameter** of the resulting clusters satisfies a monotonicity property: $\mathrm{diam}(C_{\mathrm{parent}}) \geq \max(\mathrm{diam}(C_1), \mathrm{diam}(C_2))$.
+- **Complexity:** $O(k(n-k)^2)$ per iteration
 
 ---
 
-### Family III — Density-Based
+#### Bisecting K-Means
 
-**DBSCAN** (`dbscan`)
+Divisive strategy producing a binary tree over $k-1$ bisections. At each step, the cluster with maximum intra-cluster variance is selected and bisected:
 
-Core-reachability graph: $p \xrightarrow{\text{reach}} q$ if $p$ is a core point and $d(p,q) \leq \varepsilon$. Clusters are maximal density-connected sets. Noise label $-1$. Tags: `no_k_needed`, `noise_robust`.
+$$C^* = \arg\max_{C_j} \sum_{x_i \in C_j} \|x_i - \mu_j\|^2$$
 
----
+Two-means is applied to $C^*$. The WCSS decreases monotonically at every bisection because children always have lower combined WCSS than the parent. After $k-1$ bisections, $k$ clusters are obtained.
 
-**OPTICS** (`optics`)
-
-Reachability distance $\mathrm{rd}(p,q) = \max(\mathrm{cd}(q), d(p,q))$. Orders points by traversal; extracts clusters via $\xi$-steep descent ($\xi \in [0,1]$ controls minimum relative drop in reachability). The reachability plot encodes the complete density hierarchy without committing to a single $\varepsilon$.
+- **Complexity:** $O(nkT \log k)$
 
 ---
 
-**HDBSCAN** (`hdbscan`)
+### Hierarchical Family
 
-Mutual reachability distance and hierarchical cluster tree. Stability-based cluster selection:
+#### Agglomerative Clustering (AGNES)
 
-```math
-\mathrm{stab}(C) = \sum_{x \in C} \bigl(\lambda_{\mathrm{max}}(x, C) - \lambda_{\mathrm{birth}}(C)\bigr)
-```
+Bottom-up linkage clustering merges the closest pair of clusters at each step. Four linkage criteria for clusters $A$, $B$:
 
-where $\lambda = 1/d_{\mathrm{mreach}}$. EOM (Excess of Mass) selects the subset of non-overlapping clusters maximising total stability. Soft membership probability: $\Pr(x \in C_j) = \lambda_{\mathrm{death}}(x,C_j)/\max_{x'}\lambda_{\mathrm{death}}(x',C_j)$. Tags: `no_k_needed`, `noise_robust`, `probabilistic`.
+| Linkage | Distance $D(A,B)$ |
+|---------|-------------------|
+| Ward | $\frac{n_A n_B}{n_A + n_B} \|\mu_A - \mu_B\|^2$ |
+| Complete | $\max_{a \in A,\, b \in B} d(a,b)$ |
+| Average (UPGMA) | $\frac{1}{|A||B|} \sum_{a \in A} \sum_{b \in B} d(a,b)$ |
+| Single | $\min_{a \in A,\, b \in B} d(a,b)$ |
 
----
+All four are unified by the **Lance–Williams recurrence**, which updates the distance from the newly merged cluster $A \cup B$ to any existing cluster $C$ without recomputing pairwise distances:
 
-**Mean Shift** (`mean_shift`)
+$$D(A \cup B,\, C) = \alpha_A D(A,C) + \alpha_B D(B,C) + \beta\, D(A,B) + \gamma |D(A,C) - D(B,C)|$$
 
-KDE gradient ascent. Bandwidth $h$ estimated via Silverman's rule: $h = 1.06\,\hat{\sigma}\,n^{-1/(d+4)}$. Mean shift vector:
+with family-specific coefficients $(\alpha_A, \alpha_B, \beta, \gamma)$. This enables $O(n^2 \log n)$ priority-queue implementations. Ward's linkage minimises the total increase in within-cluster variance at each merge:
 
-```math
-m_h(x) = \frac{\displaystyle\sum_i K_h(x - x_i)\, x_i}{\displaystyle\sum_i K_h(x - x_i)} - x \;\;\propto\;\; \nabla \hat{f}_h(x)
-```
+$$\Delta(A,B) = \frac{n_A n_B}{n_A + n_B} \|\mu_A - \mu_B\|^2$$
 
-Tags: `no_k_needed`, `shape_agnostic`.
+The dendrogram cophenetic distance $c_{ij}$ is the linkage level at which $x_i$ and $x_j$ first merge. **Cophenetic correlation** $\rho_c = \text{corr}(d_{ij}, c_{ij})$ measures the faithfulness of the dendrogram representation.
 
----
-
-**DENCLUE** (`denclue`)
-
-Density-based via Gaussian kernel density estimation:
-
-```math
-\hat{f}(x) = \frac{1}{n\,h^d} \sum_{i=1}^n K\!\left(\frac{x - x_i}{h}\right)
-```
-
-Clusters are maximal connected regions where $\hat{f}(x) \geq \xi$ (density threshold). Points are attracted to density attractors (local maxima of $\hat{f}$) via gradient ascent. Outperforms DBSCAN for continuously varying density distributions. The gradient of $\hat{f}$ in the Gaussian kernel case is analytically tractable:
-
-```math
-\nabla \hat{f}(x) = \frac{1}{n\,h^{d+2}}\sum_{i=1}^n K\!\left(\frac{x-x_i}{h}\right)(x_i - x)
-```
+- **Complexity:** $O(n^3)$ naïve; $O(n^2 \log n)$ with Lance–Williams and priority queue
 
 ---
 
-### Family IV — Distribution-Based
+#### BIRCH
 
-**Gaussian Mixture Models** (4 covariance types)
+BIRCH uses a **Clustering Feature (CF)** tree to summarise data in $O(n)$. Each CF node stores the triplet:
 
-```math
-p(x) = \sum_{j=1}^k \pi_j\,\mathcal{N}(x \mid \mu_j, \Sigma_j)
-```
+$$CF = (n,\, LS,\, SS), \quad LS = \sum_{i=1}^n x_i, \quad SS = \sum_{i=1}^n \|x_i\|^2$$
 
-EM with four covariance regimes:
+All cluster statistics are computable from CF alone:
 
-| Type | Constraint | Parameters per cluster |
-|------|-----------|------------------------|
-| `full` | Unconstrained $\Sigma_j$ | $d(d+1)/2$ |
+- Centroid: $\mu = LS / n$
+- Radius: $R = \sqrt{SS/n - \|LS/n\|^2}$
+- Diameter: $D = \sqrt{2 \cdot (SS/n - \|LS/n\|^2)}$
+
+Merging two CFs is $O(1)$: $CF_1 + CF_2 = (n_1+n_2,\, LS_1+LS_2,\, SS_1+SS_2)$.
+
+The `threshold` parameter $\theta$ controls the maximum subcluster radius:
+
+$$R = \sqrt{\frac{SS}{n} - \left\|\frac{LS}{n}\right\|^2} \leq \theta$$
+
+Phase 1 builds the CF tree in a single data pass; Phase 2 applies agglomerative clustering to leaf-level subcluster centroids; Phase 3 reassigns original points to nearest leaf centroids.
+
+- **Complexity:** $O(n)$ Phase 1, single-pass, sub-linear space
+
+---
+
+#### DIANA — Divisive Analysis (v2)
+
+Top-down divisive hierarchical clustering. Starting from the full dataset, the algorithm identifies the most dissimilar point and iteratively builds the *splinter group*:
+
+$$x^* = \arg\max_{x \in C} \left[ \bar{d}(x, C\setminus S) - \bar{d}(x, S) \right]$$
+
+where $\bar{d}(x, A) = \frac{1}{|A|}\sum_{y \in A} d(x, y)$ is the average distance from $x$ to group $A$, and $S$ is the current splinter group. Points with positive *splinter preference* $\bar{d}(x, C\setminus S) - \bar{d}(x, S) > 0$ are moved to the splinter group. This continues until no more points prefer the splinter group, then the split is finalised. DIANA avoids the chaining artefact of single-linkage AGNES for elongated clusters.
+
+---
+
+#### Feature Agglomeration (v1)
+
+Transposed agglomerative clustering: clusters *features* (columns) using Ward linkage on the feature-correlation matrix $(\Sigma_F)_{ij} = \rho(f_i, f_j)$. Grouped features are replaced by their mean, giving a semantically coherent reduced feature space.
+
+- **Complexity:** $O(d^2 \log d)$ on $d$ features
+
+---
+
+### Density Family
+
+#### DBSCAN
+
+DBSCAN constructs clusters from density-connected regions. Definitions:
+
+- **$\varepsilon$-neighbourhood**: $N_\varepsilon(p) = \{q \in X : d(p,q) \leq \varepsilon\}$
+- **Core point**: $p$ is core if $|N_\varepsilon(p)| \geq \text{MinPts}$
+- **Directly density-reachable**: $q$ from $p$ if $p$ is core and $q \in N_\varepsilon(p)$
+- **Density-reachable**: chain of direct reachability
+- **Density-connected**: both $p$, $q$ are density-reachable from some $o$
+
+A cluster is the maximal density-connected set containing at least one core point. Points not in any cluster receive label $-1$ (noise). Formally:
+
+$$C_j = \{ x \in X : \exists\text{ density-reachability path from some core point to }x \}$$
+
+Automatic $\varepsilon$ estimation uses the **k-NN distance profile elbow**. Sorting the $k$-th nearest-neighbour distances $d_k(1) \leq d_k(2) \leq \cdots \leq d_k(n)$, the elbow is located via maximum discrete second derivative:
+
+$$\hat{\varepsilon} = d_k\!\left[\arg\max_i |d_k[i+1] - 2d_k[i] + d_k[i-1]|\right]$$
+
+This approximates the curvature $\kappa \approx |y''| / (1 + y'^2)^{3/2}$ in the sorted distance plot.
+
+- **Complexity:** $O(n \log n)$ with ball-tree or KD-tree spatial indexing
+
+---
+
+#### HDBSCAN
+
+HDBSCAN extends DBSCAN to a full density hierarchy via the **mutual reachability distance**:
+
+$$d_{\text{mreach},k}(a, b) = \max\bigl(\text{core}_k(a),\; \text{core}_k(b),\; d(a,b)\bigr)$$
+
+where $\text{core}_k(a) = d(a, \text{kNN}_k(a))$ is the core distance of $a$ to its $k$-th nearest neighbour. Mutual reachability smooths density fluctuations: $d_{\text{mreach}} \geq d$ always holds.
+
+The algorithm:
+1. Build the complete mutual-reachability graph $G_\text{mr}$
+2. Extract its Minimum Spanning Tree $\text{MST}(G_\text{mr})$ via Borůvka's algorithm in $O(n \log n)$
+3. Convert to the condensed cluster hierarchy by removing clusters below `min_cluster_size`
+4. Select persistent clusters by maximising cluster **stability**:
+
+$$\text{stability}(C) = \sum_{x \in C} \left( \lambda_{\text{death}}(x, C) - \lambda_{\text{birth}}(C) \right), \quad \lambda = 1/d_{\text{mreach}}$$
+
+The **Excess of Mass (EOM)** criterion selects the subset of non-overlapping clusters maximising total stability. Soft membership probability for point $x$ in cluster $C$:
+
+$$P(x \in C) = \frac{\lambda_{\text{death}}(x, C)}{\max_{x'} \lambda_{\text{death}}(x', C)}$$
+
+- **Complexity:** $O(n \log n)$ time and $O(n)$ space
+
+---
+
+#### OPTICS
+
+OPTICS computes a reachability ordering encoding the complete density hierarchy without committing to a single $\varepsilon$. The reachability distance from $p$ to $q$ is:
+
+$$\text{rd}_k(p, q) = \max\!\left(\text{core-dist}_k(q),\; d(p,q)\right)$$
+
+The sorted reachability plot reveals cluster structure as valleys. The **$\xi$-steep descent** extraction identifies valleys with relative depth $\xi$:
+
+$$\text{steep descent at } i: \quad \frac{r[i] - r[i+1]}{r[i]} \geq \xi$$
+
+This requires no global $\varepsilon$ parameter and simultaneously reveals multi-scale cluster structure.
+
+---
+
+#### Mean Shift
+
+Non-parametric mode-seeking algorithm. Each point $x$ iterates toward the **kernel-weighted mean**:
+
+$$m_h(x) = \frac{\sum_{i=1}^n K_h(x - x_i)\, x_i}{\sum_{i=1}^n K_h(x - x_i)}$$
+
+with Gaussian kernel $K_h(u) = \exp(-\|u\|^2 / 2h^2)$. The shift vector $m_h(x) - x$ is proportional to $\nabla \hat{f}_h(x)$, the gradient of the kernel density estimate:
+
+$$\hat{f}_h(x) = \frac{1}{n h^d} \sum_{i=1}^n K\!\left(\frac{x - x_i}{h}\right)$$
+
+Each shift step climbs the KDE gradient surface, converging to a mode (local maximum) of $\hat{f}_h$. Bandwidth $h$ is estimated via Silverman's rule: $h = 1.06\, \hat{\sigma}\, n^{-1/(d+4)}$.
+
+- **Complexity:** $O(Tn^2)$
+
+---
+
+#### DENCLUE (v2)
+
+Density-based clustering via Gaussian KDE. The KDE gradient in closed form (Gaussian kernel):
+
+$$\nabla \hat{f}(x) = \frac{1}{n h^{d+2}} \sum_{i=1}^n K\!\left(\frac{x-x_i}{h}\right)(x_i - x)$$
+
+Points are attracted to **density attractors** (local maxima of $\hat{f}$) by following the gradient. Clusters are maximal connected regions where $\hat{f}(x) \geq \xi$ for a density threshold $\xi$. DENCLUE handles continuously varying density distributions where DBSCAN's global $\varepsilon$ is insufficient.
+
+---
+
+### Distribution / Model-Based Family
+
+#### Gaussian Mixture Model (GMM)
+
+GMM models data as a convex combination of $k$ Gaussians:
+
+$$p(x) = \sum_{j=1}^k \pi_j\, \mathcal{N}(x \mid \mu_j, \Sigma_j), \quad \pi_j \geq 0,\; \sum_j \pi_j = 1$$
+
+where $\mathcal{N}(x \mid \mu, \Sigma) = (2\pi)^{-d/2} |\Sigma|^{-1/2} \exp\!\left(-\frac{1}{2}(x-\mu)^\top \Sigma^{-1}(x-\mu)\right)$.
+
+Parameters are estimated by **Expectation-Maximisation (EM)**. The complete-data log-likelihood is:
+
+$$\mathcal{L}_c(\theta) = \sum_{i=1}^n \sum_{j=1}^k z_{ij} \left[ \log \pi_j + \log \mathcal{N}(x_i \mid \mu_j, \Sigma_j) \right]$$
+
+**E-step** — compute posterior responsibilities (soft cluster assignments):
+
+$$r_{ij} = \frac{\pi_j\, \mathcal{N}(x_i \mid \mu_j, \Sigma_j)}{\sum_{l=1}^k \pi_l\, \mathcal{N}(x_i \mid \mu_l, \Sigma_l)}$$
+
+**M-step** — update parameters using weighted sufficient statistics:
+
+$$\pi_j = \frac{1}{n}\sum_i r_{ij}, \quad \mu_j = \frac{\sum_i r_{ij}\, x_i}{\sum_i r_{ij}}, \quad \Sigma_j = \frac{\sum_i r_{ij}(x_i-\mu_j)(x_i-\mu_j)^\top}{\sum_i r_{ij}}$$
+
+EM monotonically increases the marginal log-likelihood $\mathcal{L}(\theta) = \sum_i \log p(x_i)$ because:
+
+$$\mathcal{L}(\theta^{(t+1)}) - \mathcal{L}(\theta^{(t)}) = \text{KL}\!\left[q_t(Z) \;\|\; p(Z|X,\theta^{(t)})\right] + \Delta Q \geq 0$$
+
+where $Q(\theta|\theta^{(t)}) = \mathbb{E}_{q_t}[\mathcal{L}_c(\theta)]$ is the Q-function lower bound.
+
+**Model selection** via BIC: $\text{BIC}(k) = -2\hat{\mathcal{L}} + p_k \ln n$ where $p_k = k[d + d(d+1)/2 + 1] - 1$ for full covariance.
+
+Four covariance structures:
+
+| Type | Constraint | $d$-dim parameters |
+|------|-----------|---------------------|
+| `full` | $\Sigma_j$ unconstrained | $d(d+1)/2$ per cluster |
 | `tied` | Shared $\Sigma$ | $d(d+1)/2$ total |
-| `diag` | Diagonal $\Sigma_j$ | $d$ |
-| `spherical` | $\sigma_j^2 I$ | $1$ |
+| `diag` | $\Sigma_j = \text{diag}(\sigma_{j1}^2,\ldots)$ | $d$ per cluster |
+| `spherical` | $\Sigma_j = \sigma_j^2 I$ | $1$ per cluster |
 
-BIC/AIC for model selection:
-
-```math
-\mathrm{BIC} = -2\hat{\mathcal{L}} + p\,\ln n, \quad \mathrm{AIC} = -2\hat{\mathcal{L}} + 2p
-```
+- **Complexity:** $O(nkd^2 T)$ time, $O(kd^2)$ space
 
 ---
 
-**Bayesian GMM** (`bgmm`)
+#### Bayesian GMM (BGMM)
 
-Variational inference with Dirichlet process prior. ELBO:
+BGMM places conjugate priors over all GMM parameters:
 
-```math
-\mathcal{L}_{\mathrm{ELBO}} = \mathbb{E}_q\bigl[\log p(X,Z,\theta)\bigr] + \mathcal{H}[q(Z,\theta)]
-```
+$$\pi \sim \text{Dir}(\alpha/k, \ldots, \alpha/k), \quad \mu_j \sim \mathcal{N}(0, \beta^{-1}I), \quad \Lambda_j \sim \mathcal{W}(\nu, W)$$
 
-where $\mathcal{H}$ is the variational entropy. This equals $\log p(X) - \mathrm{KL}[q \| p(\cdot|X)]$. Concentration $\alpha \to 0$: automatic component pruning (inactive components get $\pi_j \approx 0$).
+Inference maximises the **Evidence Lower BOund (ELBO)**:
 
----
+$$\mathcal{L}_\text{ELBO} = \mathbb{E}_q[\log p(X, Z, \theta)] - \mathbb{E}_q[\log q(Z, \theta)]$$
 
-### Family V — Graph-Based / Spectral
-
-**Spectral Clustering** (2 assign modes: kmeans, discretize)
-
-Graph Laplacian eigenvectors embed the data. Normalised Laplacian:
-
-```math
-\mathcal{L}_{\mathrm{sym}} = I - D^{-1/2}WD^{-1/2}
-```
-
-**Spectral gap heuristic** for $k$: the number of eigenvalues near 0 reveals the natural cluster count. Under ideal $k$ perfectly separated components: $\lambda_1 = \cdots = \lambda_k = 0$, $\lambda_{k+1} > 0$. Assignment mode `discretize` rounds the embedding matrix via iterative rotation:
-
-```math
-\min_{R \in \mathcal{O}(k)} \|U - VR\|_F, \quad V_{ij} = \frac{u_{ij}}{\|u_i\|_2}
-```
+This equals $\log p(X) - \text{KL}[q \| p(\cdot|X)] \leq \log p(X)$. As the Dirichlet concentration $\alpha \to 0$, inactive components receive $\pi_j \approx 0$, providing automatic model order selection equivalent to the Dirichlet Process (infinite mixture) limit.
 
 ---
 
-**Spectral Biclustering** (`spectral_biclustering`)
+#### Affinity Propagation
 
-Simultaneously clusters rows and columns of the data matrix $X \in \mathbb{R}^{n \times d}$ using the Laplacian normalisation of the biadjacency structure. Finds biclusters $B = (R, C)$ maximising the average value of $X_{RC}$ relative to $X$. SVD of the normalised matrix $D_r^{-1/2}X D_c^{-1/2}$ yields the bicluster structure.
+Message-passing over the similarity graph $s(i,k) = -\|x_i - x_k\|^2$. Two messages are exchanged at each iteration:
 
----
+**Responsibility** $r(i,k)$ — how much evidence that $k$ should be $i$'s exemplar:
 
-**Spectral Coclustering** (`spectral_coclustering`)
+$$r(i,k) \leftarrow s(i,k) - \max_{k' \neq k} \{a(i,k') + s(i,k')\}$$
 
-Normalised cut on the bipartite graph of samples and features. SVD of the normalised matrix $D_r^{-1/2} X D_c^{-1/2}$ yields a low-rank structure; K-Means on the stacked singular vectors produces co-clusters simultaneously partitioning rows and columns.
+**Availability** $a(i,k)$ — how appropriate it is for $i$ to choose $k$ as exemplar:
 
----
+$$a(i,k) \leftarrow \min\!\left(0,\; r(k,k) + \sum_{i' \notin \{i,k\}} \max(0, r(i',k))\right)$$
 
-**Affinity Propagation** (`affinity_propagation`)
+Self-availability: $a(k,k) \leftarrow \sum_{i' \neq k} \max(0, r(i',k))$.
 
-Message-passing over the fully-connected similarity graph with damping:
+Exemplars are identified where $a(k,k) + r(k,k) > 0$. Damped updates with factor $\lambda \in [0.5, 1)$ prevent oscillations:
 
-```math
-r_{t+1} = (1-\lambda)\,r_t + \lambda\,r_{\mathrm{new}}, \quad a_{t+1} = (1-\lambda)\,a_t + \lambda\,a_{\mathrm{new}}
-```
+$$r^{(t+1)} = (1-\lambda)\, r_\text{new} + \lambda\, r^{(t)}, \quad a^{(t+1)} = (1-\lambda)\, a_\text{new} + \lambda\, a^{(t)}$$
 
-Responsibility update:
-
-```math
-r(i,k) \leftarrow s(i,k) - \max_{k' \neq k}\bigl\{a(i,k') + s(i,k')\bigr\}
-```
-
-Availability update:
-
-```math
-a(i,k) \leftarrow \min\!\left(0,\; r(k,k) + \sum_{i' \notin \{i,k\}} \max(0, r(i',k))\right)
-```
-
-Exemplars emerge without specifying $k$. Tags: `no_k_needed`.
+- **Complexity:** $O(n^2 T)$ time and $O(n^2)$ space
 
 ---
 
-### Family VI — Neural / Deep
+### Graph & Spectral Family
 
-**Autoencoder + K-Means** (`autoencoder_kmeans`)
+#### Spectral Clustering
 
-A deep autoencoder first learns a non-linear compression $z = f_\phi(x) \in \mathbb{R}^q$ ($q \ll d$), trained to minimise reconstruction loss:
+Spectral clustering performs graph-cut optimisation in the eigenspace of the graph Laplacian.
 
-```math
-\mathcal{L}_{\mathrm{recon}} = \|x - g_\theta(f_\phi(x))\|_2^2
-```
+**Step 1** — Affinity matrix via RBF kernel: $W_{ij} = \exp(-\|x_i-x_j\|^2 / 2\sigma^2)$.
 
-K-Means is then applied in the latent space $\{z_i\}$. Encoder architecture: Input($d$) → Dense(128, ReLU) → Dense(64, ReLU) → Dense($q$, Linear). Decoder mirrors. Joint fine-tuning minimises:
+**Step 2** — Normalised Laplacian: $\mathcal{L}_\text{sym} = I - D^{-1/2} W D^{-1/2}$ where $D_{ii} = \sum_j W_{ij}$.
 
-```math
-\mathcal{L}_{\mathrm{total}} = \mathcal{L}_{\mathrm{recon}} + \lambda_c\,\mathcal{L}_{\mathrm{cluster}}, \quad \mathcal{L}_{\mathrm{cluster}} = \sum_{i=1}^n \|z_i - \mu_{c(i)}\|^2
-```
+**Step 3** — Spectral decomposition: solve $\mathcal{L}_\text{sym} u = \lambda u$, collecting the $k$ eigenvectors with smallest eigenvalues into $U \in \mathbb{R}^{n \times k}$.
 
-The latent embedding $f_\phi$ learns a topology-aware compression superior to linear PCA for manifold-structured data. Tags: `shape_agnostic`, `high_dimensional`.
+**Step 4** — Row-normalise $U$: $U_{i\cdot} \leftarrow U_{i\cdot} / \|U_{i\cdot}\|_2$.
 
----
+**Step 5** — Apply K-Means to the rows of $U$.
 
-**Self-Organising Map Clustering** (`som_clustering`)
+The **spectral gap heuristic** for $k$: the multiplicity of eigenvalue 0 of the unnormalised Laplacian $L = D - W$ equals the number of connected components. The optimal $k$ is identified by the largest gap $\delta_k = \lambda_{k+1} - \lambda_k$.
 
-SOM learns a discrete low-dimensional manifold (typically 2D grid) that maps the data topology. For each input $x$, the best-matching unit (BMU) is:
+The **Cheeger inequality** relates the spectral gap to the minimum graph cut:
 
-```math
-$$i^*(x) = \underset{i}{\arg\min}\ \|x - w_i\|$$
+$$\frac{h^2}{2} \leq \lambda_2 \leq 2h, \quad h = \min_{S} \frac{|\partial S|}{\min(\text{vol}(S), \text{vol}(\bar{S}))}$$
 
-```
+where $h$ is the Cheeger constant (normalised minimum cut) and $|\partial S|$ counts edges crossing the cut.
 
-Weights update with decaying learning rate $\alpha(t)$ and neighbourhood function $h(i, i^*, t)$:
+The `discretize` assignment rounds the embedding via iterative rotation:
 
-```math
-w_i \leftarrow w_i + \alpha(t)\cdot h(i, i^*, t)\cdot (x - w_i)
-```
+$$\min_{R \in \mathcal{O}(k)} \|U - VR\|_F, \quad V_{ij} = u_{ij} / \|u_{i\cdot}\|_2$$
 
-where $h(i, i^*, t) = \exp(-\|r_i - r_{i^*}\|^2 / 2\sigma(t)^2)$ is the neighbourhood kernel on the grid and $\sigma(t)$ decays with training time. After training, the **U-Matrix** $U_{ij} = \|w_i - w_j\|$ between adjacent map units reveals cluster boundaries. K-Means on SOM prototypes yields final assignments. Tags: `shape_agnostic`, `high_dimensional`, `online`.
+- **Complexity:** $O(n^3)$ for dense $W$; $O(n \cdot k \cdot d)$ with sparse affinity
 
 ---
 
-### Family VII — Subspace
+#### Spectral Biclustering (v2)
 
-**Projected K-Means** (`projected_kmeans`)
+Simultaneously clusters rows and columns of $X \in \mathbb{R}^{n \times d}$. The normalised biadjacency form:
 
-Random projection $\Phi \in \mathbb{R}^{q \times d}$ with entries $\phi_{ij} \sim \mathcal{N}(0, 1/q)$ reduces dimensionality before K-Means application. By the **Johnson-Lindenstrauss lemma**: for $q = O(\varepsilon^{-2}\log n)$, pairwise distances are preserved within factor $1 \pm \varepsilon$ with high probability:
+$$\hat{X} = D_r^{-1/2} X D_c^{-1/2}$$
 
-```math
-\Pr\!\left[\,(1-\varepsilon)\|x-y\|^2 \leq \|\Phi x - \Phi y\|^2 \leq (1+\varepsilon)\|x-y\|^2\,\right] \geq 1 - 2\exp\!\left(-q\varepsilon^2/4\right)
-```
-
-Effective for very high-dimensional sparse data.
+The SVD $\hat{X} = U \Sigma V^\top$ yields row clusters from $U$ and column clusters from $V$ simultaneously. Biclusters $(R, C)$ correspond to subsets of rows and columns where $X_{RC}$ has elevated mean relative to the full matrix.
 
 ---
 
-**CLIQUE Subspace Clustering** (`clique_subspace`)
+#### Spectral Coclustering (v2)
 
-Grid-based subspace discovery. Divides each dimension into $\xi$ equal-width bins and identifies dense units (cells where point density $\geq \tau$). Connected dense units in lower-dimensional projections form clusters. CLIQUE automatically finds clusters in all subspace projections, addressing the curse of dimensionality by focusing on locally relevant subsets of dimensions.
-
----
-
-### Family VIII — Ensemble
-
-**Ensemble Voting (Multi-Init K-Means)** (`ensemble_voting`)
-
-Runs K-Means with $M$ different random seeds, producing label sets $\{L_1, \ldots, L_M\}$. Builds a co-occurrence matrix:
-
-```math
-A_{ij} = \frac{1}{M}\sum_{m=1}^M \mathbf{1}\bigl[L_m(i) = L_m(j)\bigr]
-```
-
-Spectral or agglomerative clustering on $1 - A$ produces the consensus partition. The ensemble variance $\mathrm{Var}[A_{ij}]$ quantifies pointwise assignment uncertainty.
+Minimum normalised cut on the bipartite graph $G = (I \cup J, E)$ where nodes are samples and features. The adjacency matrix of $G$ is the data matrix $X$ itself. SVD of $D_r^{-1/2} X D_c^{-1/2}$ yields singular vectors; K-Means on the stacked singular vectors simultaneously partitions rows and columns.
 
 ---
 
-**Random Subspace Ensemble** (`random_subspace_ensemble`)
+### Neural / Deep Family (v2 only)
 
-Trains $T$ clusterers, each on a random feature subset of size $\lfloor\sqrt{d}\rfloor$. Consensus via co-association matrix averaging. The feature subset variance reduction follows from:
+#### Autoencoder + K-Means
 
-```math
-\mathrm{Var}\!\left[\frac{1}{T}\sum_{t=1}^T A_{ij}^{(t)}\right] = \frac{\mathrm{Var}[A_{ij}^{(t)}]}{T} + \frac{T-1}{T}\,\mathrm{Cov}[A_{ij}^{(t)}, A_{ij}^{(t')}]
-```
+A deep autoencoder learns a nonlinear latent embedding $z = f_\phi(x) \in \mathbb{R}^q$ ($q \ll d$), trained to minimise reconstruction loss:
 
-Diversity between trees (low covariance term) reduces ensemble variance.
+$$\mathcal{L}_\text{recon} = \frac{1}{n}\sum_{i=1}^n \|x_i - g_\theta(f_\phi(x_i))\|_2^2$$
 
----
+K-Means is then applied in the latent space $\{z_i\}_{i=1}^n$. **Joint fine-tuning** minimises:
 
-### Family IX — Fuzzy
+$$\mathcal{L}_\text{total} = \mathcal{L}_\text{recon} + \lambda_c\, \mathcal{L}_\text{cluster}, \quad \mathcal{L}_\text{cluster} = \sum_{i=1}^n \|z_i - \mu_{c(i)}\|^2$$
 
-**Fuzzy C-Means (FCM)** (`fuzzy_cmeans`)
+Encoder architecture: Input($d$) $\to$ Dense(128, ReLU) $\to$ Dense(64, ReLU) $\to$ Dense($q$, Linear). Decoder mirrors the encoder. The gradient of $\mathcal{L}_\text{total}$ w.r.t. encoder parameters $\phi$:
 
-FCM relaxes hard assignment to membership degrees $u_{ij} \in [0,1]$ with $\sum_j u_{ij} = 1$. Objective:
+$$\frac{\partial \mathcal{L}_\text{total}}{\partial \phi} = \frac{\partial \mathcal{L}_\text{recon}}{\partial \phi} + \lambda_c \frac{\partial \mathcal{L}_\text{cluster}}{\partial \phi}$$
 
-```math
-J_m = \sum_{i=1}^n \sum_{j=1}^k u_{ij}^m \|x_i - \mu_j\|^2
-```
-
-where $m > 1$ is the fuzzifier (typically $m = 2$). Update rules from optimality conditions:
-
-```math
-u_{ij} = \left(\sum_{l=1}^k \left(\frac{\|x_i - \mu_j\|}{\|x_i - \mu_l\|}\right)^{2/(m-1)}\right)^{-1}, \qquad \mu_j = \frac{\sum_i u_{ij}^m x_i}{\sum_i u_{ij}^m}
-```
-
-EM-like iterations converge to a local minimum of $J_m$. The **Picard iteration** theorem guarantees convergence: $\|u^{(t+1)} - u^*\| = O(\|u^{(t)} - u^*\|^2)$ (quadratic local convergence under mild conditions). Tags: `probabilistic`, `shape_agnostic`.
+The cluster loss gradient $\frac{\partial \mathcal{L}_\text{cluster}}{\partial z_i} = 2(z_i - \mu_{c(i)})$ encourages latent representations to form tight clusters.
 
 ---
 
-**Possibilistic C-Means (PCM)** (`possibilistic_cmeans`)
+#### Self-Organising Map (SOM)
 
-PCM relaxes the probabilistic constraint $\sum_j u_{ij} = 1$. Membership degrees become independent **typicalities** $t_{ij} \in [0,1]$ measuring how typical a point is of a cluster. Objective:
+SOM learns a discrete low-dimensional (typically 2D) grid manifold $\{w_i\}_{i \in G}$ that maps the data topology. For each input $x$, the **Best Matching Unit (BMU)** is:
 
-```math
-J_m = \sum_{i=1}^n \sum_{j=1}^k t_{ij}^m \|x_i - \mu_j\|^2 + \sum_{j=1}^k \eta_j \sum_{i=1}^n (1 - t_{ij})^m
-```
+$$i^*(x) = \arg\min_{i \in G} \|x - w_i\|$$
 
-where the per-cluster bandwidth:
+Weights update with decaying neighbourhood function $h(i, i^*, t) = \exp(-\|r_i - r_{i^*}\|^2 / 2\sigma(t)^2)$ and learning rate $\alpha(t)$:
 
-```math
-\eta_j = K\,\frac{\sum_i u_{ij}^m \|x_i - \mu_j\|^2}{\sum_i u_{ij}^m}
-```
+$$w_i \leftarrow w_i + \alpha(t)\cdot h(i, i^*, t) \cdot (x - w_i)$$
 
-is estimated from FCM memberships. PCM is robust to outliers (outliers have low typicality to all clusters) and avoids the coincident clusters problem inherent in FCM.
+Both decay: $\alpha(t) = \alpha_0 \exp(-t/T)$ and $\sigma(t) = \sigma_0 \exp(-t/T)$ where $T$ is the number of training epochs. The **U-Matrix** visualises cluster boundaries: $U_{ij} = \|w_i - w_j\|$ between adjacent grid units — high values indicate inter-cluster boundaries. K-Means on the trained SOM prototypes yields final cluster assignments.
 
 ---
 
-### Family X — Grid-Based
+### Fuzzy Family (v2 only)
 
-**WaveCluster (Grid)** (`sting_grid`)
+#### Fuzzy C-Means (FCM)
 
-Quantises the feature space into a hierarchical grid. Each cell stores the statistical summary $(n, \mu, \sigma^2)$ of contained points. Density is estimated cell-wise; connected high-density cells form clusters. Multi-resolution analysis: coarse grids give global structure, fine grids capture local detail. Runs in $O(n)$ (linear in data, independent of grid resolution). Cell density threshold $\tau$ controls the minimum density for a cell to be considered part of a cluster.
+FCM relaxes hard assignment to membership degrees $u_{ij} \in [0,1]$ with $\sum_j u_{ij} = 1$. The fuzzy WCSS objective:
 
----
+$$J_m = \sum_{i=1}^n \sum_{j=1}^k u_{ij}^m \|x_i - \mu_j\|^2, \quad m > 1$$
 
-### Family XI — Manifold
+The fuzzifier $m$ controls softness: $m \to 1$ recovers hard K-Means; $m \to \infty$ gives uniform memberships. Setting partial derivatives to zero yields the optimal update rules:
 
-**Isomap + K-Means** (`isomap_kmeans`)
+$$u_{ij} = \left(\sum_{l=1}^k \left(\frac{\|x_i - \mu_j\|}{\|x_i - \mu_l\|}\right)^{2/(m-1)}\right)^{-1}, \quad \mu_j = \frac{\sum_i u_{ij}^m x_i}{\sum_i u_{ij}^m}$$
 
-Isomap estimates geodesic distances by constructing a $k$-NN graph and computing shortest paths (Dijkstra or Floyd-Warshall); the geodesic distance matrix $D_G$ is embedded via **classical MDS** minimising strain:
+The **Picard iteration** converges quadratically in a neighbourhood of the solution:
 
-```math
-\mathrm{Strain}(Y) = \left\|\tau(D_G) - Y^\top Y\right\|_F
-```
+$$\|u^{(t+1)} - u^\ast\| = O(\|u^{(t)} - u^\ast\|^2)$$
 
-where $\tau(D_G) = -\frac{1}{2}H D_G^{(2)} H$ (double-centred squared distance, $H = I - \frac{1}{n}\mathbf{1}\mathbf{1}^\top$). K-Means is applied to the geodesic embedding $Y \in \mathbb{R}^{n \times q}$. For data lying on a smooth $q$-dimensional manifold isometrically embedded in $\mathbb{R}^d$, Isomap recovers the true intrinsic geometry as $n \to \infty$.
+under mild regularity conditions. Typically $m=2$ is used; the choice of $m$ affects the transition sharpness. The boundary of cluster $j$ is the locus $\{x : u_{j}(x) = 0.5\}$.
 
 ---
 
-**LLE + K-Means** (`lle_kmeans`)
+#### Possibilistic C-Means (PCM)
 
-Locally Linear Embedding represents each point as a linear combination of its $k$-NN:
+PCM relaxes the probabilistic constraint $\sum_j u_{ij} = 1$. Membership degrees become independent **typicalities** $t_{ij} \in [0,1]$. Objective:
 
-```math
-\min_W \sum_i \left\|x_i - \sum_j W_{ij} x_j\right\|^2, \quad \text{s.t.}\ \sum_j W_{ij} = 1,\; W_{ij} = 0\ \text{if}\ j \notin \mathcal{N}(i)
-```
+$$J_m = \sum_{i=1}^n \sum_{j=1}^k t_{ij}^m \|x_i - \mu_j\|^2 + \sum_{j=1}^k \eta_j \sum_{i=1}^n (1 - t_{ij})^m$$
 
-The low-dimensional embedding $Y$ minimises the same reconstruction cost with fixed $W$:
+where the per-cluster bandwidth (estimated from FCM memberships):
 
-```math
-\min_Y \sum_i \left\|y_i - \sum_j W_{ij} y_j\right\|^2 = \min_Y \mathrm{tr}\!\left(Y^\top M Y\right)
-```
+$$\eta_j = \frac{\sum_i u_{ij}^m \|x_i - \mu_j\|^2}{\sum_i u_{ij}^m}$$
 
-where $M = (I-W)^\top(I-W)$. The solution is the bottom $q$ eigenvectors of $M$ (excluding the trivial $\mathbf{1}$ eigenvector). LLE faithfully unrolls manifolds (e.g. Swiss roll), yielding Euclidean structure amenable to K-Means.
+The second penalty term prevents the trivial solution $t_{ij} = 0$ for all $i$. The optimal typicality update:
 
----
+$$t_{ij} = \left(1 + \left(\frac{\|x_i - \mu_j\|^2}{\eta_j}\right)^{1/(m-1)}\right)^{-1}$$
 
-**UMAP + HDBSCAN** (`umap_hdbscan`)
-
-UMAP learns a fuzzy topological representation via Riemannian geometry. For each point $x_i$ and its $k$-NN $\{x_{i,j}\}$, local fuzzy membership strength:
-
-```math
-\mu(x_i, x_{i,j}) = \exp\!\left(-\frac{d(x_i, x_{i,j}) - \rho_i}{\sigma_i}\right)
-```
-
-where $\rho_i = d(x_i, x_{i,1})$ is the nearest-neighbour distance and $\sigma_i$ is chosen to achieve a target fuzzy set cardinality (the perplexity analogue). The global embedding minimises the **cross-entropy** between fuzzy topological representations:
-
-```math
-\mathcal{L}_{\mathrm{UMAP}} = \sum_{e \in E} \left[w_e \log\frac{w_e}{q_e} + (1-w_e)\log\frac{1-w_e}{1-q_e}\right]
-```
-
-where $w_e$ are high-dimensional fuzzy edge weights and $q_e = (1 + a\|y_i - y_j\|^{2b})^{-1}$ are low-dimensional weights with learnable parameters $a, b$. HDBSCAN on the UMAP coordinates produces density-faithful cluster boundaries. Tags: `shape_agnostic`, `no_k_needed`, `noise_robust`.
+Outliers achieve low typicality to all clusters (unlike FCM where they have equal membership to all), making PCM intrinsically outlier-robust.
 
 ---
 
-### Extra Algorithms
+### Manifold Family (v2 only)
 
-| ID | Name | Description |
-|----|------|-------------|
-| `clara` | CLARA | K-Medoids on random subsamples; scalable to large $n$ |
-| `threshold_clustering` | Threshold Clustering | Distance-based single-pass: merge if $d < \theta$ |
-| `robust_cc` | Robust CC | Correlation clustering with noise tolerance |
-| `sparse_spectral` | Sparse Spectral | Spectral on sparse affinity graph (k-NN only) |
-| `online_gmm` | Online GMM | Mini-batch EM for streaming GMM estimation |
-| `repeated_bisecting` | Repeated Bisecting | Bisecting K-Means with multiple restart averaging |
+#### Isomap + K-Means
+
+Isomap estimates **geodesic distances** on the data manifold by constructing a $k$-NN graph and computing all-pairs shortest paths via Dijkstra's algorithm. The geodesic distance matrix $D_G$ is embedded in $\mathbb{R}^q$ via **Classical Multidimensional Scaling (cMDS)**, minimising the strain:
+
+$$\text{Strain}(Y) = \left\|\tau(D_G) - Y^\top Y\right\|_F$$
+
+where $\tau(D_G) = -\frac{1}{2} H D_G^{(2)} H$ is the double-centred squared geodesic distance, and $H = I - \frac{1}{n}\mathbf{1}\mathbf{1}^\top$ is the centring matrix. The solution is the top-$q$ eigenvectors of $\tau(D_G)$ scaled by their eigenvalues.
+
+**Convergence guarantee:** For data uniformly sampled from a smooth compact Riemannian manifold $\mathcal{M}$ of intrinsic dimension $q$ isometrically embedded in $\mathbb{R}^d$:
+
+$$\left|D_G(x_i, x_j) - d_\mathcal{M}(x_i, x_j)\right| \to 0 \quad \text{as } n \to \infty$$
+
+---
+
+#### LLE + K-Means
+
+LLE finds a locally linear representation of each point using its $k$-NN. **Phase 1** — solve for optimal reconstruction weights:
+
+$$\min_W \sum_{i=1}^n \left\|x_i - \sum_{j \in \mathcal{N}(i)} W_{ij} x_j\right\|^2, \quad \sum_j W_{ij} = 1, \quad W_{ij}=0 \text{ if } j \notin \mathcal{N}(i)$$
+
+Closed-form solution: $W_{ij} = \frac{\sum_l (G^i)^{-1}_{jl}}{\sum_{jl} (G^i)^{-1}_{jl}}$ where $G^i_{jl} = (x_i - x_j)^\top(x_i - x_l)$.
+
+**Phase 2** — find the low-dimensional embedding $Y$ preserving the same weights:
+
+$$\min_Y \sum_i \left\|y_i - \sum_j W_{ij} y_j\right\|^2 = \text{tr}(Y^\top M Y), \quad M = (I-W)^\top(I-W)$$
+
+subject to $\frac{1}{n} Y^\top Y = I$ to avoid degenerate solutions. The embedding is the bottom $q$ eigenvectors of $M$ (excluding the constant eigenvector $\mathbf{1}$).
+
+---
+
+#### UMAP + HDBSCAN
+
+UMAP learns a fuzzy topological representation. For each point $x_i$ and its $k$-NN $\{x_{i,j}\}_{j=1}^k$, the local fuzzy membership strength is:
+
+$$\mu_{ij} = \exp\!\left(-\frac{d(x_i, x_{i,j}) - \rho_i}{\sigma_i}\right)$$
+
+where $\rho_i = d(x_i, x_{i,1})$ (nearest-neighbour distance) and $\sigma_i$ is chosen so that $\sum_j \mu_{ij} = \log_2 k$ (target fuzzy cardinality). The symmetrised fuzzy graph has edge weights:
+
+$$v_{ij} = \mu_{ij} + \mu_{ji} - \mu_{ij}\, \mu_{ji}$$
+
+The low-dimensional embedding minimises cross-entropy between the high-dimensional fuzzy representation and the low-dimensional one:
+
+$$\mathcal{L}_\text{UMAP} = \sum_{(i,j)} \left[ v_{ij} \log \frac{v_{ij}}{q_{ij}} + (1-v_{ij}) \log \frac{1-v_{ij}}{1-q_{ij}} \right]$$
+
+where $q_{ij} = (1 + a \|y_i - y_j\|^{2b})^{-1}$ with learnable parameters $a, b$ fit to a Student-t distribution. HDBSCAN is then applied to UMAP coordinates for density-faithful cluster boundaries.
+
+---
+
+### Subspace & Ensemble Families (v2 only)
+
+#### Projected K-Means
+
+Random projection $\Phi \in \mathbb{R}^{q \times d}$ with $\Phi_{ij} \sim \mathcal{N}(0, 1/q)$ reduces dimensionality before K-Means. The **Johnson-Lindenstrauss lemma** guarantees:
+
+$$\Pr\!\left[(1-\varepsilon)\|x-y\|^2 \leq \|\Phi x - \Phi y\|^2 \leq (1+\varepsilon)\|x-y\|^2\right] \geq 1 - 2\exp\!\left(-\frac{q\varepsilon^2}{4}\right)$$
+
+for any $x, y \in \mathbb{R}^d$, provided $q = O(\varepsilon^{-2} \log n)$. Thus for $q \approx 8\varepsilon^{-2} \ln(1/\delta)$ dimensions, all $\binom{n}{2}$ pairwise distances are simultaneously preserved within factor $1 \pm \varepsilon$ with probability $\geq 1-\delta$.
+
+---
+
+#### Ensemble Voting (Multi-Init K-Means)
+
+Runs K-Means $M$ times with different seeds, producing labellings $\{L_1,\ldots,L_M\}$. Builds the **co-occurrence matrix**:
+
+$$A_{ij} = \frac{1}{M}\sum_{m=1}^M \mathbf{1}[L_m(i) = L_m(j)]$$
+
+Spectral or agglomerative clustering on $1-A$ produces the consensus partition. The ensemble variance satisfies:
+
+$$\text{Var}\!\left[\frac{1}{M}\sum_m A_{ij}^{(m)}\right] = \frac{\text{Var}[A_{ij}]}{M} + \frac{M-1}{M}\text{Cov}[A_{ij}^{(m)}, A_{ij}^{(m')}]$$
+
+Diversity among initialisations (low covariance) reduces ensemble variance.
+
+---
+
+#### Random Subspace Ensemble
+
+Trains $T$ clusterers, each on a random feature subset of size $\lfloor\sqrt{d}\rfloor$. Co-association matrices are averaged: $A = \frac{1}{T}\sum_t A^{(t)}$. Effective for high-dimensional data where no single projection dominates.
+
+---
+
+### Grid-Based Family (v2 only)
+
+#### WaveCluster / Grid
+
+Quantises the feature space into a hierarchical grid at multiple resolutions. Each cell stores the statistical summary $(n, \mu, \sigma^2)$ of contained points. Cell density:
+
+$$\hat{f}_\text{cell}(c) = \frac{n_c}{n \cdot \text{vol}(c)}$$
+
+Connected high-density cells ($\hat{f} \geq \tau$) form clusters. Multi-resolution: coarse grids give global structure, fine grids capture local detail. Runtime is $O(n)$ — linear in data, independent of grid resolution.
 
 ---
 
@@ -544,380 +692,535 @@ where $w_e$ are high-dimensional fuzzy edge weights and $q_e = (1 + a\|y_i - y_j
 
 ### Internal Validity Indices
 
-**Silhouette Score**
+#### Silhouette Score
 
-```math
-s(i) = \frac{b(i) - a(i)}{\max\!\left(a(i),\, b(i)\right)}, \qquad S = \frac{1}{n}\sum_{i=1}^n s(i) \in [-1, 1]
-```
+For each point $i$ in cluster $C_j$, define:
+- $a(i) = \frac{1}{|C_j|-1}\sum_{i' \in C_j, i' \neq i} d(i, i')$ — mean intra-cluster distance
+- $b(i) = \min_{l \neq j} \frac{1}{|C_l|}\sum_{i' \in C_l} d(i, i')$ — mean distance to nearest other cluster
 
-Graded interpretation: $[0.70, 1]$ strong, $[0.50, 0.70)$ reasonable, $[0.25, 0.50)$ weak, $[0, 0.25)$ no structure, $< 0$ incorrect assignments.
+$$s(i) = \frac{b(i) - a(i)}{\max(a(i),\, b(i))}, \quad S = \frac{1}{n}\sum_{i=1}^n s(i) \in [-1, 1]$$
 
----
+Geometric interpretation: $s(i) = 1$ means $a(i) \to 0$ (perfect intra-cluster cohesion); $s(i) = -1$ means $b(i) \to 0$ (point is closer to the core of another cluster). The **per-cluster silhouette** is $S_j = \frac{1}{|C_j|}\sum_{i \in C_j} s(i)$.
 
-**Davies-Bouldin Index**
-
-```math
-\mathrm{DBI} = \frac{1}{k}\sum_{j=1}^k \max_{l \neq j} \frac{\sigma_j + \sigma_l}{d(\mu_j, \mu_l)}
-```
+Interpretation thresholds: $[0.70, 1.00]$ strong structure; $[0.50, 0.70)$ reasonable; $[0.25, 0.50)$ weak; $< 0.25$ no meaningful structure; $< 0$ misassignment.
 
 ---
 
-**Calinski-Harabász Score**
+#### Davies-Bouldin Index (DBI)
 
-```math
-\mathrm{CH} = \frac{\mathrm{tr}(B_k)\,(n-k)}{\mathrm{tr}(W_k)\,(k-1)}, \quad B_k = \sum_j n_j(\mu_j - \bar{\mu})(\mu_j - \bar{\mu})^\top
-```
+$$\text{DBI} = \frac{1}{k}\sum_{j=1}^k \max_{l \neq j} \left\lbrace \frac{\sigma_j + \sigma_l}{d(\mu_j, \mu_l)} \right\rbrace$$
 
-The total scatter decomposition $T = B_k + W_k$ is invariant; maximising CH maximises the ratio of between- to within-cluster variance per degree of freedom.
+where $\sigma_j = \frac{1}{|C_j|}\sum_{x \in C_j} d(x, \mu_j)$ is the average intra-cluster scatter radius. DBI rewards clusters that are simultaneously compact (small $\sigma_j$) and well-separated (large $d(\mu_j, \mu_l)$). Lower is better; DBI $= 0$ for non-overlapping clusters.
 
----
-
-**Dunn Index**
-
-```math
-\mathrm{DI} = \frac{\displaystyle\min_{i \neq j} \delta(C_i, C_j)}{\displaystyle\max_k \Delta(C_k)}
-```
+**Relation to cluster shapes:** DBI penalises elongated or overlapping clusters more than compact spherical ones.
 
 ---
 
-**Xie-Beni Index**
+#### Calinski-Harabász Score (CH)
 
-```math
-\mathrm{XB} = \frac{\frac{1}{n}\displaystyle\sum_j \sum_{x \in C_j}\|x-\mu_j\|^2}{\displaystyle\min_{i \neq j}\|\mu_i - \mu_j\|^2}
-```
+$$\text{CH} = \frac{\text{tr}(B_k)\, /\, (k-1)}{\text{tr}(W_k)\, /\, (n-k)}$$
 
----
-
-**Inertia** (WCSS)
-
-```math
-\mathcal{I} = \sum_{j=1}^k \sum_{x \in C_j}\|x - \mu_j\|^2
-```
-
-The elbow in $\mathcal{I}(k)$ vs $k$ is detected by the kneedle algorithm (maximum discrete second derivative $|\mathcal{I}(k+1) - 2\mathcal{I}(k) + \mathcal{I}(k-1)|$).
+Since $T = B_k + W_k$ is constant for a fixed dataset, maximising CH is equivalent to maximising $\text{tr}(B_k)$ while minimising $\text{tr}(W_k)$. Under a spherical Gaussian mixture with equal variances, CH is the ANOVA F-statistic for testing cluster mean differences. No absolute scale exists; CH is used comparatively across values of $k$.
 
 ---
 
-**S\_DBw Index**
+#### Dunn Index (DI)
 
-```math
-\mathrm{S\_DBw} = \frac{1}{k}\sum_j \frac{\|\sigma_j\|}{\|\sigma\|} + \frac{1}{k(k-1)}\sum_{i \neq j} \frac{\rho(u_{ij})}{\max\!\left(\rho(\mu_i),\,\rho(\mu_j)\right)}
-```
+$$\text{DI} = \frac{\min_{i \neq j} \delta(C_i, C_j)}{\max_k \Delta(C_k)}$$
 
----
-
-### External Validity Indices (when ground truth is available)
-
-**Adjusted Rand Index (ARI)**
-
-```math
-\mathrm{ARI} = \frac{\mathrm{RI} - \mathbb{E}[\mathrm{RI}]}{\max(\mathrm{RI}) - \mathbb{E}[\mathrm{RI}]}
-```
-
-Chance-corrected pair-counting; ranges $[-1, 1]$, expected 0 for random assignments.
-
-**Adjusted Mutual Information (AMI)**
-
-```math
-\mathrm{AMI}(U,V) = \frac{\mathrm{MI}(U,V) - \mathbb{E}[\mathrm{MI}(U,V)]}{\mathrm{avg}(H(U), H(V)) - \mathbb{E}[\mathrm{MI}(U,V)]}
-```
-
-where $\mathrm{MI}(U,V) = \sum_{u,v} P(u,v) \log \frac{P(u,v)}{P(u)P(v)}$ is mutual information and $H$ is Shannon entropy.
-
-**Normalised Mutual Information (NMI)**
-
-```math
-\mathrm{NMI}(U,V) = \frac{2\cdot \mathrm{MI}(U,V)}{H(U) + H(V)}
-```
-
-NMI = 0 for independent labellings; NMI = 1 for identical labellings. The normalisation by $H(U) + H(V)$ corrects for the trivial dependence on cluster count.
-
-**Cluster Purity**
-
-```math
-\mathrm{Purity} = \frac{1}{n}\sum_j \max_l |C_j \cap G_l|
-```
-
-where $G_l$ are ground-truth groups. Purity is always between $1/k$ (worst case) and 1 (perfect).
+where $\delta(C_i, C_j) = \min_{x \in C_i, y \in C_j} d(x,y)$ (single-linkage inter-cluster distance) and $\Delta(C_k) = \max_{x,y \in C_k} d(x,y)$ (complete-linkage cluster diameter). Higher values indicate compact, well-separated clusters. DI is sensitive to outliers because a single outlier inflates $\Delta(C_k)$.
 
 ---
 
-### Composite Scoring & Pareto Front
+#### Xie-Beni Index (XB)
 
-The `CompositeScorer` computes a normalised weighted combination:
+$$\text{XB} = \frac{\sum_{j=1}^k \sum_{x \in C_j} \|x - \mu_j\|^2}{n \cdot \min_{i \neq j} \|\mu_i - \mu_j\|^2}$$
 
-```math
-\mathrm{Score}(R) = \frac{\sum_m w_m \cdot \tilde{v}_m(R)}{\sum_m w_m}
-```
+Compactness-to-separation ratio; lower is better. The numerator is the total WCSS; the denominator penalises configurations where centroids are too close.
 
-with $\tilde{v}_m$ normalising metric $m$ to $[0,1]$ (respecting direction). Weights: Silhouette 3.0, DBI 2.0, CH 1.5, Dunn 1.0, XB 1.0.
+---
 
-The **Pareto Front** provides multi-objective selection — an algorithm $R_i$ is Pareto-optimal if no other algorithm is strictly better on all selected metrics simultaneously:
+#### S\_DBw Index
 
-```math
-\mathrm{PF} = \bigl\{R_i : \nexists\, R_j \text{ s.t. } v_m(R_j) \succeq v_m(R_i)\;\forall m,\; v_{m'}(R_j) \succ v_{m'}(R_i)\;\exists m'\bigr\}
-```
+$$S_{DBw} = \text{Scat}(k) + \text{Dens}_{bw}(k)$$
 
-The **k-Sweep Analyser** (`KSweepAnalyser`) runs any algorithm over a range of $k$ values, computes all metrics, and uses `find_optimal_k` combining elbow (maximum second derivative of $\mathcal{I}(k)$) and metric peak detection to recommend $k$.
+$$\text{Scat}(k) = \frac{1}{k}\sum_{j=1}^k \frac{\|\sigma_j\|}{\|\sigma\|}$$
+
+$$\text{Dens}_{bw}(k) = \frac{1}{k(k-1)}\sum_{i \neq j} \frac{\rho(u_{ij})}{\max\left(\rho(\mu_i), \rho(\mu_j)\right)}, \quad u_{ij} = \frac{\mu_i + \mu_j}{2}$$
+
+where $\rho(\mu)$ is the density at point $\mu$ (number of points within a radius $r$). S\_DBw penalises dense inter-centroid mid-points relative to centroid densities — high mid-point density indicates cluster overlap.
+
+---
+
+#### Gap Statistic
+
+$$\text{Gap}(k) = \mathbb{E}_n^*[\log W_k] - \log W_k$$
+
+where $W_k = \sum_{j=1}^k \frac{1}{2n_j} D_j$ is the pooled within-cluster dispersion and the expectation is over $B$ reference datasets drawn uniformly from the bounding box of $X$. The **one-standard-error rule** selects the smallest $k$ satisfying:
+
+$$\text{Gap}(k) \geq \text{Gap}(k+1) - s_{k+1}, \quad s_{k+1} = \text{std}_b[\log W_{k+1}^{(b)}]\sqrt{1 + 1/B}$$
+
+The reference distribution choice (uniform bounding box vs PCA-aligned) affects the test: PCA-aligned is recommended when data is correlated.
+
+---
+
+#### Inertia (WCSS) and Elbow Detection
+
+$$\mathcal{I}(k) = \sum_{j=1}^k \sum_{x \in C_j} \|x - \mu_j\|^2$$
+
+$\mathcal{I}(k)$ is strictly decreasing in $k$, asymptotically approaching zero. The **elbow** is the point of maximum curvature, detected by the kneedle algorithm:
+
+$$k^* = \arg\max_k |\mathcal{I}(k+1) - 2\mathcal{I}(k) + \mathcal{I}(k-1)|$$
+
+This discrete second derivative approximates the curvature $\kappa$ at each point.
+
+---
+
+#### Partition Entropy and Cluster Balance
+
+$$\mathcal{H}(\mathcal{C}) = -\sum_{j=1}^k \frac{n_j}{n} \log_2 \frac{n_j}{n} \in [0, \log_2 k]$$
+
+Used internally to flag imbalanced assignments. The **Lorenz curve** of sorted cluster sizes $n_{(1)} \leq \cdots \leq n_{(k)}$ visualises size inequality; the **Gini coefficient** measures it:
+
+$$G = \frac{\sum_{i,j} |n_i - n_j|}{2k \sum_j n_j}$$
+
+---
+
+### External Validity Indices
+
+#### Adjusted Rand Index (ARI)
+
+For labellings $U$ and $V$, let $a$ = concordant same-cluster pairs, $d$ = concordant different-cluster pairs. The Rand Index $\text{RI} = (a+d)/\binom{n}{2}$. ARI corrects for chance:
+
+$$\text{ARI} = \frac{\text{RI} - \mathbb{E}[\text{RI}]}{\max(\text{RI}) - \mathbb{E}[\text{RI}]}$$
+
+where $\mathbb{E}[\text{RI}] = \frac{\sum_j \binom{n_j^U}{2} \cdot \sum_l \binom{n_l^V}{2}}{\binom{n}{2}^2}$.
+
+ARI $\in [-1, 1]$; expected value is 0 for random labellings, 1 for perfect agreement.
+
+---
+
+#### Adjusted Mutual Information (AMI)
+
+$$\text{AMI}(U,V) = \frac{\text{MI}(U,V) - \mathbb{E}[\text{MI}(U,V)]}{\text{avg}(H(U), H(V)) - \mathbb{E}[\text{MI}(U,V)]}$$
+
+where the mutual information:
+
+$$\text{MI}(U,V) = \sum_{u,v} P(u,v) \log \frac{P(u,v)}{P(u)P(v)}$$
+
+and Shannon entropy $H(U) = -\sum_u P(u) \log P(u)$. AMI = 1 for identical labellings; AMI $\approx 0$ for independent ones.
+
+---
+
+#### Normalised Mutual Information (NMI)
+
+$$\text{NMI}(U,V) = \frac{2\cdot \text{MI}(U,V)}{H(U) + H(V)} \in [0, 1]$$
+
+The denominator $H(U)+H(V)$ corrects for cluster count: adding empty clusters inflates MI but not NMI.
+
+---
+
+#### Cluster Purity
+
+$$\text{Purity} = \frac{1}{n}\sum_{j=1}^k \max_l |C_j \cap G_l|$$
+
+where $G_l$ are ground-truth groups. Purity $\in [1/k, 1]$; the lower bound $1/k$ is achieved when each cluster has exactly $n/k$ members spread uniformly across all ground-truth classes.
+
+---
+
+#### V-Measure
+
+The V-measure unifies homogeneity and completeness:
+
+$$\text{Homogeneity} = 1 - \frac{H(C|K)}{H(C)}, \quad \text{Completeness} = 1 - \frac{H(K|C)}{H(K)}$$
+
+$$V = \frac{(1+\beta)\cdot h \cdot c}{(\beta \cdot h) + c}$$
+
+where $\beta = 1$ gives equal weight to both. This is the conditional-entropy analogue of the F-measure.
+
+---
+
+### Composite Ranking & Pareto Front
+
+#### Composite Score
+
+The `CompositeScorer` computes a normalised weighted combination across all valid metrics:
+
+$$\text{Score}(R) = \frac{\sum_m w_m \cdot \tilde{v}_m(R)}{\sum_m w_m}$$
+
+where $\tilde{v}_m(R) = \frac{v_m(R) - v_m^\text{min}}{v_m^\text{max} - v_m^\text{min}}$ normalises metric $m$ to $[0,1]$, respecting direction (some metrics are minimised, others maximised).
+
+Predefined weights:
+
+| Metric | Weight $w_m$ |
+|--------|-------------|
+| Silhouette | 3.0 |
+| DBI | 2.0 |
+| CH | 1.5 |
+| Dunn | 1.0 |
+| XB | 1.0 |
+
+A **pairwise win matrix** $W_{ij} = \sum_m \mathbf{1}[v_m(R_i) \succ v_m(R_j)]$ counts on how many metrics algorithm $i$ beats algorithm $j$.
+
+---
+
+#### Pareto Front (v2)
+
+An algorithm $R_i$ is **Pareto-optimal** if no other algorithm $R_j$ is simultaneously better on all selected metrics:
+
+$$\text{PF} = \{ R_i : \nexists\, R_j \text{ s.t. } v_m(R_j) \succeq v_m(R_i)\ \forall m \text{ and } v_{m'}(R_j) \succ v_{m'}(R_i) \text{ for some } m' \}$$
+
+The Pareto front provides multi-objective selection without collapsing metrics into a single scalar, preserving the trade-off structure across validity indices.
+
+---
+
+#### k-Sweep Analysis
+
+The `KSweepAnalyser` runs any algorithm over $k \in [k_{\min}, k_{\max}]$, computing all metrics at each $k$. The recommended $k$ combines:
+
+1. **Elbow detection:** $k_\text{elbow} = \arg\max_k |\mathcal{I}(k+1) - 2\mathcal{I}(k) + \mathcal{I}(k-1)|$
+2. **Silhouette peak:** $k_S = \arg\max_k S(k)$
+3. **Gap statistic:** $k_\text{gap} = \min\{k : \text{Gap}(k) \geq \text{Gap}(k+1) - s_{k+1}\}$
+
+The consensus recommendation weights these three estimates.
 
 ---
 
 ## Preprocessing Pipeline
 
-The `PreprocessingPipeline` executes 8 stages:
+The `PreprocessingPipeline` applies 8 sequential stages:
 
-1. **Data Loading** — CSV/Excel/JSON/Parquet/TSV, max 500K × 2000
-2. **Deep Profiling** — per-column: dtype, unique count, missing%, mean, std, skewness ($g_1 = \mu_3/\mu_2^{3/2}$), excess kurtosis ($g_2 = \mu_4/\mu_2^2 - 3$), outlier%, high-correlation pairs
-3. **Missing Value Imputation** — mean, median, mode, KNN, MICE (iterative), constant, drop
-4. **Outlier Detection** — Z-score, IQR, Isolation Forest, LOF, Elliptic Envelope; actions: remove, clip, winsorise, flag
-5. **Categorical Encoding** — one-hot, ordinal, target encoding
-6. **Feature Scaling** — Standard, MinMax, Robust (median/IQR), MaxAbs, L1/L2 Normalizer, Box-Cox/Yeo-Johnson, QuantileTransformer
-7. **Feature Selection** — variance threshold, correlation filter, PCA (target variance), ANOVA F-test
-8. **Column Dropping** — explicit user-selected columns
+### Stage 1 — Data Loading
 
-### Outlier Detection Mathematics
+CSV, Excel (xlsx/xls), JSON, Parquet, TSV via `DataLoader`. Maximum: 500,000 rows × 2,000 columns.
 
-**Z-Score:**
+### Stage 2 — Deep Profiling
 
-```math
-z_i = \frac{x_i - \mu}{\sigma}; \quad \text{flag}\ |z_i| > 3
-```
+Per-column statistics: dtype, unique count, missing rate, mean, std, and distributional shape metrics.
 
-**IQR:**
+**Skewness** (third standardised moment): $g_1 = \frac{\mu_3}{\mu_2^{3/2}}$ where $\mu_r = \frac{1}{n}\sum_i (x_i - \bar{x})^r$.
 
-```math
-\text{flag}\ x_i < Q_1 - 1.5\,\mathrm{IQR}\ \text{or}\ x_i > Q_3 + 1.5\,\mathrm{IQR}
-```
+**Excess kurtosis** (fourth standardised moment): $g_2 = \frac{\mu_4}{\mu_2^2} - 3$.
+
+High-correlation pair detection flags feature pairs with $|\rho(f_i, f_j)| > 0.9$.
+
+### Stage 3 — Missing Value Imputation
+
+| Strategy | Description |
+|----------|-------------|
+| `mean` | Replace with feature mean |
+| `median` | Replace with feature median |
+| `most_frequent` | Replace with mode |
+| `knn` | k-NN imputation: $\hat{x}_{ij} = \frac{\sum_{l \in \mathcal{N}_k(i)} x_{lj} \cdot w_{il}}{\sum_{l} w_{il}}$, $w_{il} = 1/d(x_i, x_l)$ |
+| `iterative` (MICE) | Multiple Imputation by Chained Equations — iterative regression imputation |
+| `constant` | Fill with user-specified value |
+| `drop_rows` | Remove rows with any missing value |
+| `drop_cols` | Remove columns exceeding missing threshold |
+
+### Stage 4 — Outlier Detection & Handling
+
+**Z-Score:** $z_i = (x_i - \mu)/\sigma$; flag $|z_i| > 3$.
+
+**IQR:** flag $x_i < Q_1 - 1.5\,\text{IQR}$ or $x_i > Q_3 + 1.5\,\text{IQR}$.
 
 **Isolation Forest:** anomaly score
 
-```math
-s(x,n) = 2^{-\,E[h(x)]\,/\,c(n)}, \quad c(n) = 2H(n-1) - \frac{2(n-1)}{n}
-```
+$$s(x, n) = 2^{-E[h(x)]/c(n)}, \quad c(n) = 2H(n-1) - \frac{2(n-1)}{n}$$
 
-where $h(x)$ is the path length in a random isolation tree and $H$ is the harmonic number.
+where $h(x)$ is path length in a random isolation tree and $H$ is the harmonic number. Expected path length for a normal point: $c(n)$; anomalies have $E[h(x)] \ll c(n)$.
 
-**LOF:**
+**Local Outlier Factor:**
 
-```math
-\mathrm{LOF}_k(p) = \frac{\displaystyle\sum_{o \in N_k(p)} \frac{\mathrm{lrd}_k(o)}{\mathrm{lrd}_k(p)}}{|N_k(p)|}, \quad \mathrm{lrd}_k(p) = \left(\frac{\sum_{o \in N_k(p)} \mathrm{reach\text{-}dist}_k(p,o)}{|N_k(p)|}\right)^{-1}
-```
+$$\text{LOF}_k(p) = \frac{\sum_{o \in N_k(p)} \text{lrd}_k(o)\, /\, \text{lrd}_k(p)}{|N_k(p)|}$$
 
-LOF $\approx 1$: regular point; LOF $\gg 1$: outlier (locally sparser than neighbours).
+$$\text{lrd}_k(p) = \left(\frac{\sum_{o \in N_k(p)} \text{reach-dist}_k(p,o)}{|N_k(p)|}\right)^{-1}$$
+
+LOF $\approx 1$ for regular points; LOF $\gg 1$ for outliers (locally sparser than their neighbours).
+
+**Elliptic Envelope:** fits a robust Mahalanobis distance estimator $d_M(x) = \sqrt{(x-\hat{\mu})^\top \hat{\Sigma}^{-1}(x-\hat{\mu})}$ using the Minimum Covariance Determinant (MCD) estimator.
+
+**Outlier actions:** remove, clip to fence, winsorise, flag (add binary indicator), ignore.
+
+### Stage 5 — Categorical Encoding
+
+| Method | Description |
+|--------|-------------|
+| One-hot | Binary indicator columns, increases dimensionality by $c-1$ |
+| Ordinal | Integer codes $0,1,\ldots,c-1$ |
+| Target encoding | Replace category $c_j$ with $\mathbb{E}[y \mid c = c_j]$ |
+
+### Stage 6 — Feature Scaling
+
+| Scaler | Formula |
+|--------|---------|
+| StandardScaler | $z = (x-\mu)/\sigma$ |
+| MinMaxScaler | $x' = (x - x_\min)/(x_\max - x_\min)$ |
+| RobustScaler | $x' = (x - Q_2)/(Q_3 - Q_1)$ |
+| MaxAbsScaler | $x' = x / \max|x|$ |
+| L1 Normalizer | $x' = x / \|x\|_1$ |
+| L2 Normalizer | $x' = x / \|x\|_2$ |
+| Box-Cox | $x'(\lambda) = (x^\lambda - 1)/\lambda$ for $x > 0$ |
+| Yeo-Johnson | Extends Box-Cox to all $x \in \mathbb{R}$ |
+| QuantileTransformer | Maps to uniform or normal via rank transformation |
+
+### Stage 7 — Feature Selection
+
+**Variance threshold:** drop feature $f$ if $\text{Var}(f) < \tau$.
+
+**Correlation filter:** for correlated pair $|\rho(f_i, f_j)| > \theta$, drop $f_j$ (retaining $f_i$ with higher variance).
+
+**PCA dimensionality reduction:** retain the top-$q$ principal components explaining $v\%$ of total variance:
+
+$$q = \min\left\lbrace m : \frac{\sum_{l=1}^m \lambda_l}{\sum_{l=1}^d \lambda_l} \geq v\right\rbrace$$
+
+**ANOVA F-test feature ranking:**
+
+$$F_j = \frac{(n-k)}{(k-1)} \cdot \frac{\sum_l n_l (\bar{x}_{lj} - \bar{x}_j)^2}{\sum_l \sum_{i \in C_l} (x_{ij} - \bar{x}_{lj})^2}$$
+
+Higher $F_j$ indicates feature $f_j$ discriminates better between clusters.
+
+### Stage 8 — Column Dropping
+
+User-specified column removal (e.g., known label columns for purely unsupervised evaluation).
 
 ---
 
-## Stability & Robustness Engine
+## Stability & Consensus Analysis
 
-### Five Perturbation Regimes
+### Bootstrap Stability
 
-| Regime | Perturbation | Formal Definition |
+The `StabilityPipeline` resamples $B$ times with subsample ratio $\rho$. For each bootstrap run, ARI is computed against the full-data reference labelling. The **Adjusted Rand Index**:
+
+$$\text{ARI} = \frac{\text{RI} - \mathbb{E}[\text{RI}]}{\max(\text{RI}) - \mathbb{E}[\text{RI}]}$$
+
+where the Rand Index $\text{RI} = (a+d)/\binom{n}{2}$, $a$ = same-cluster concordant pairs, $d$ = different-cluster concordant pairs. The chance correction term:
+
+$$\mathbb{E}[\text{RI}] = \frac{\left(\sum_j \binom{n_j^U}{2}\right)\!\left(\sum_l \binom{n_l^V}{2}\right)}{\binom{n}{2}^2}$$
+
+The **Jaccard Index** provides an alternative stability measure:
+
+$$J = \frac{|\text{TP}|}{|\text{TP}| + |\text{FP}| + |\text{FN}|}$$
+
+where TP = same-cluster concordant pairs, FP = same in prediction but different in reference, FN = different in prediction but same in reference.
+
+### Five Perturbation Regimes (v2)
+
+| Regime | Perturbation | Formal definition |
 |--------|-------------|-------------------|
-| **Bootstrap** | Subsample 80% w/o replacement | $X^{(b)} \sim \mathrm{Subsample}(X, 0.8)$ |
-| **Gaussian Noise** | Additive i.i.d. Gaussian | $\tilde{x}_i = x_i + \epsilon,\ \epsilon \sim \mathcal{N}(0, \sigma^2 I)$ |
-| **Laplacian Noise** | Heavy-tailed additive | $\tilde{x}_i = x_i + \epsilon,\ \epsilon \sim \mathrm{Lap}(0, b)$ |
-| **Feature Dropout** | Random column zeroing | $\tilde{x}_i^{(j)} = 0$ for $j \in \mathcal{D} \sim \mathrm{Binom}(d, p_{\mathrm{drop}})$ |
-| **Subset Sampling** | Progressive data fraction | $X^{(f)} = \mathrm{Sample}(X, f\cdot n)$, $f \in [0.5, 1.0]$ |
+| Bootstrap | Subsample 80% | $X^{(b)} \sim \text{Subsample}(X, 0.8)$ |
+| Gaussian Noise | Additive i.i.d. | $\tilde{x}_i = x_i + \varepsilon,\ \varepsilon \sim \mathcal{N}(0, \sigma^2 I)$ |
+| Laplacian Noise | Heavy-tailed | $\tilde{x}_i = x_i + \varepsilon,\ \varepsilon \sim \text{Lap}(0, b)$ |
+| Feature Dropout | Column zeroing | $\tilde{x}_i^{(j)} = 0$ for $j \in \mathcal{D} \sim \text{Binom}(d, p_\text{drop})$ |
+| Subset Sampling | Progressive fraction | $X^{(f)} = \text{Sample}(X, f\cdot n)$, $f \in [0.5, 1.0]$ |
 
-For each regime at level $\sigma$, ARI is measured against the full-data reference labelling. The Laplacian distribution $\mathrm{Lap}(0, b)$ has heavier tails than Gaussian ($\mathrm{kurtosis} = 6$ vs 0), providing a more challenging corruption regime for testing outlier robustness.
+The Laplacian distribution $\text{Lap}(0,b)$ has kurtosis 6 (vs 0 for Gaussian), making it a harder corruption regime. For each regime at noise level $\sigma$, ARI is measured:
 
-The **persistence score** measures how consistently the same pairwise structure is preserved across noise levels:
+$$\bar{\text{ARI}}(\text{regime}) = \frac{1}{L}\sum_{l=1}^L \text{ARI}(L(\sigma_l), L_\text{ref})$$
 
-```math
-\mathrm{persistence}(C_j) = \int_{\sigma_{\min}}^{\sigma_{\max}} \mathrm{ARI}(L(\sigma), L_{\mathrm{ref}})\,d\sigma \approx \sum_l \mathrm{ARI}(L(\sigma_l), L_{\mathrm{ref}})\cdot\Delta\sigma
-```
+The **persistence score** integrates stability over the noise range:
+
+$$\text{persistence}(C_j) \approx \sum_l \text{ARI}(L(\sigma_l), L_\text{ref}) \cdot \Delta\sigma$$
 
 ### Stability Grades
 
-```math
-\mathrm{Grade} = \begin{cases} \mathbf{S}^+ & \bar{\mathrm{ARI}} \geq 0.90\ \text{(Superior)} \\ \mathbf{A} & \bar{\mathrm{ARI}} \in [0.80, 0.90) \\ \mathbf{B} & \bar{\mathrm{ARI}} \in [0.65, 0.80) \\ \mathbf{C} & \bar{\mathrm{ARI}} \in [0.45, 0.65) \\ \mathbf{D} & \bar{\mathrm{ARI}} < 0.45\ \text{(Unstable)} \end{cases}
-```
+UnSuPERvIsED-II introduces an extended grading scheme:
 
-### Stability Report Schema
+$$\text{Grade} = \begin{cases} S^+ & \bar{\text{ARI}} \geq 0.90 \\ A & \bar{\text{ARI}} \in [0.80, 0.90) \\ B & \bar{\text{ARI}} \in [0.65, 0.80) \\ C & \bar{\text{ARI}} \in [0.45, 0.65) \\ D & \bar{\text{ARI}} < 0.45 \end{cases}$$
 
-Each `StabilityReport` contains:
-- Per-regime ARI distribution (mean, std, min, max, histogram)
-- Per-cluster persistence scores
-- Composite stability score (weighted average across regimes)
-- Stability grade with certified assessment
-- Noise degradation curve (ARI vs $\sigma$)
-- Feature importance by dropout (features whose removal most degrades stability)
-- `MultiAlgorithmStabilityComparator`: side-by-side comparison across all evaluated algorithms
+UnSuPERvIsED-I uses a four-grade scheme: **A** (ARI ≥ 0.85), **B** (≥0.65), **C** (≥0.40), **D** (<0.40).
 
-### Consensus Analysis
+### Consensus Clustering
 
-Co-association matrix:
+The `ConsensusPipeline` runs the algorithm $M$ times with different seeds on data subsamples and builds the **co-association matrix**:
 
-```math
-A_{ij} = \frac{1}{M}\sum_{m=1}^M \mathbf{1}\bigl[L_m(i) = L_m(j)\bigr]
-```
+$$A_{ij} = \frac{\text{number of runs where } x_i, x_j \text{ co-cluster}}{\text{number of runs where both appear}} \in [0,1]$$
 
-built over $M$ runs. Optimal $k$ minimises:
+$A$ is symmetric; $A_{ij} = 1$ means always co-clustered, $A_{ij} = 0$ means never. Final consensus clusters are obtained by agglomerative clustering (average linkage) on the dissimilarity matrix $1-A$.
 
-```math
-\mathrm{PAC}(k) = F(0.9) - F(0.1)
-```
+**PAC Score** (Proportion of Ambiguous Clustering):
 
-from the empirical CDF $F$ of $A$ entries. Values of PAC near 0 indicate decisive co-association (all $A_{ij}$ near 0 or 1).
+$$\text{PAC}(k) = F(\theta_2) - F(\theta_1), \quad [\theta_1, \theta_2] = [0.1, 0.9]$$
 
-**Cophenetic correlation**: $r = \mathrm{corr}(1 - A_{ij},\ \mathrm{cophenetic\,distance}_{ij})$; measures how faithfully the dendrogram represents the co-association.
+where $F(\theta) = \frac{1}{n^2}\sum_{i,j} \mathbf{1}[A_{ij} \leq \theta]$ is the empirical CDF of co-association values. Optimal $k$ minimises PAC — values near 0 indicate decisive co-association (all $A_{ij}$ close to 0 or 1).
 
-**LabelStabilityMatrix**: tracks individual sample label agreement across runs, identifying structurally ambiguous points — those with high entropy over their cluster assignments.
+**Cophenetic correlation:**
 
----
+$$r_c = \text{corr}\!\left((1 - A_{ij}),\; c_{ij}\right)$$
 
-## Adaptive Execution Engine
+where $c_{ij}$ is the cophenetic distance from the consensus dendrogram. High $r_c > 0.9$ indicates the hierarchy faithfully represents the consensus matrix.
 
-### Dataset Size Classification
+**LabelStabilityMatrix** tracks individual sample label entropy across runs:
 
-```python
-class DatasetSizeClass(str, Enum):
-    TINY    # n < 100
-    SMALL   # n < 1,000
-    MEDIUM  # n < 10,000
-    LARGE   # n < 100,000
-    XLARGE  # n ≥ 100,000
-```
+$$H_i = -\sum_j p_{ij} \log p_{ij}, \quad p_{ij} = \frac{\text{number of runs assigning } x_i \text{ to cluster } j}{M}$$
 
-The engine consults `_SIZE_BLACKLIST` — a mapping from size class to algorithm IDs that are incompatible (e.g. Affinity Propagation for XLARGE datasets, with $O(n^2)$ space requirement), automatically filtering the run queue.
+High-entropy points are **structurally ambiguous** — lying near cluster boundaries.
 
-### Adaptive Parameter Tuning
+### Cross-Validation Stability
 
-`DBSCANParamTuner`: estimates optimal $\varepsilon$ from the $k$-NN distance elbow and optimal `min_samples` from $\lfloor\log n\rfloor$ heuristic (motivated by the expected number of points in a $d$-ball of radius $\varepsilon$ under a Poisson process). Applied automatically before each DBSCAN run.
+$$\text{CV-ARI} = \frac{1}{K}\sum_{i=1}^K \text{ARI}\!\left(\hat{y}^{(i)}, \hat{y}_\text{full}\right)$$
 
-### Thread-Safe LRU Result Cache
+### Temporal Stability
 
-`ResultCache` (max 200 entries): keys results by `(algorithm_id, data_hash, params_hash)`. On cache hit, skips computation entirely. Reports hit rate as a session metric.
+Incremental data fractions $(0.1, 0.2, \ldots, 1.0)$ are clustered; ARI between consecutive fractions:
 
-### Runtime Tracker
+$$\text{TS}(f, f') = \text{ARI}\!\left(L(X_{0:f}),\; L(X_{0:f'})\right)$$
 
-`RuntimeTracker` maintains an **exponential moving average** of per-algorithm runtimes:
-
-```math
-\hat{T}_j^{(t+1)} = (1-\alpha)\,\hat{T}_j^{(t)} + \alpha\,T_j^{(t)}, \quad \alpha = 0.3
-```
-
-enabling predictive scheduling and user-facing ETA estimates.
+A monotonically high temporal stability curve indicates cluster structure is robust even with limited data — essential for online and streaming applications.
 
 ---
 
-## AI Oracle — Gemini Intelligence
+## AI Integration — Gemini Oracle
 
-UnSuPERvIsED-II features a dedicated **AI Oracle** page — a deeply integrated conversational AI system powered by **Google Gemini 2.0 Flash Lite**, representing a more advanced AI integration than the basic AI tab in UnSuPERvIsED-I.
+### UnSuPERvIsED-I: AI Insights Tab
 
-### Architecture
+The AI tab passes a structured summary (algorithm names, all metric values, stability grades) to **Google Gemini Flash Lite** via the `google.generativeai` SDK. Four quick-analysis templates cover: (1) data quality, (2) k-selection rationale, (3) stability interpretation, (4) recommended next steps. Conversation history is preserved within the session; reports are exportable as Markdown.
 
-The AI Oracle is implemented as a full standalone page (Page 9 in the navigation) with a stateful conversation history preserved across the session. The core query function:
+### UnSuPERvIsED-II: AI Oracle (Page 9)
 
-```python
-def _gemini_query(prompt: str, context: str = "", model: str = "gemini-2.0-flash-lite") -> str:
-    """Send a structured query to Gemini with full clustering context."""
-```
+A fully dedicated **AI Oracle** page powered by **Gemini 2.0 Flash Lite**, with deeper integration and four operational modes:
 
-Unlike UnSuPERvIsED-I's template-based AI tab, the Oracle supports **four integrated analysis modes**:
+**Mode 1 — Contextual Result Interpretation:** Passes comprehensive pipeline state (all metrics, stability grades across all five perturbation regimes, preprocessing diagnostics, dataset shape, Hopkins statistic) to Gemini. The model synthesises these into explanations of *why* specific algorithms outperform others on the given data geometry.
 
-### Analysis Modes
+**Mode 2 — Algorithm Selection Advisor:** Given dataset characteristics (size class, dimensionality, density estimates, Hopkins $H$, skewness/kurtosis profile), the Oracle reasons over the 60-algorithm registry and recommends families and specific algorithms with mathematical justification.
 
-**1. Contextual Result Interpretation**
-Passes a comprehensive structured context including: all algorithm names, metric values (Silhouette, DBI, CH, Dunn, XB, ARI, AMI, NMI), stability grades (S+/A/B/C/D), perturbation regime scores, preprocessing diagnostics, and dataset shape to Gemini. The model synthesises these into natural-language interpretations of *why* one algorithm outperforms another on a given dataset.
+**Mode 3 — Hyperparameter Recommendation Engine:** Analyses the k-NN distance profile, elbow curve, gap statistic, and PAC curve jointly to recommend optimal $\varepsilon$, `min_samples`, $k$, and fuzzifier $m$ with mathematical rationale.
 
-**2. Algorithm Selection Advisor**
-Given dataset characteristics (size class, dimensionality, estimated density, Hopkins statistic, skewness/kurtosis profile, missing rate), the Oracle reasons over the 60-algorithm registry and recommends the most suitable family and specific algorithms with mathematical justification.
+**Mode 4 — Free-Form Conversational Q&A:** Full multi-turn conversation with session history. The Oracle can answer any question about the clustering results, specific algorithms, metric interpretations, or deployment recommendations.
 
-**3. Hyperparameter Recommendation Engine**
-Analyses the k-NN distance profile, elbow curve, gap statistic, and PAC curve together to recommend optimal $\varepsilon$, `min_samples`, $k$, and fuzzifier $m$ values with confidence intervals derived from the stability engine.
+| Property | v1 AI Tab | v2 AI Oracle |
+|----------|-----------|--------------|
+| Model | Gemini Flash Lite | Gemini 2.0 Flash Lite |
+| Placement | Tab 7 | Dedicated Page 9 |
+| Analysis modes | 4 templates | 4 modes + free-form chat |
+| Context depth | Metric values + grades | Full pipeline state + perturbation data |
+| Conversation history | Session-scoped | Session-scoped (last 5 turns shown) |
 
-**4. Free-Form Conversational Q&A**
-Full multi-turn conversation with session history preserved (up to 5 recent turns shown). Users can ask arbitrary questions about their clustering results, specific algorithms, metric interpretations, or deployment recommendations.
-
-### Setup
+**Setup:**
 
 ```toml
 # .streamlit/secrets.toml
 GEMINI_API_KEY = "your-key-here"
 ```
 
-The Oracle gracefully degrades: if no API key is configured, it displays a clear setup prompt without breaking other dashboard functionality.
-
-### Key Distinction from UnSuPERvIsED-I
-
-| Feature | UnSuPERvIsED-I AI Tab | UnSuPERvIsED-II AI Oracle |
-|---------|----------------------|--------------------------|
-| Model | Gemini Flash Lite (legacy) | Gemini 2.0 Flash Lite |
-| Placement | Tab 7 (basic tab) | Dedicated Page 9 |
-| Analysis modes | 4 fixed templates | 4 modes + free-form chat |
-| Context depth | Metric values + grades | Full pipeline state + perturbation data |
-| Conversation history | Session-scoped | Session-scoped (last 5 shown) |
-| Integration level | Post-hoc analysis | Context-aware at every stage |
-
 ---
 
 ## Visualisation Suite
 
-UnSuPERvIsED-II renders 30+ interactive Plotly charts:
+UnSuPERvIsED-I provides 25+ charts; UnSuPERvIsED-II extends this to 30+.
 
-| Component | Description |
-|-----------|-------------|
-| 2D/3D scatter | PCA/t-SNE/UMAP projections with cluster colouring |
-| Silhouette bar | Per-sample silhouette sorted by cluster and score |
-| Elbow curve | WCSS vs k with kneedle detection |
-| Silhouette curve | $S(k)$ with optimal k marker |
-| Gap statistic | $\mathrm{Gap}(k) \pm 1\,\mathrm{SE}$ |
-| PCA scree | Cumulative explained variance |
-| PCA biplot | PC1 vs PC2 with loading vectors |
-| Correlation heatmap | Feature correlation matrix |
-| Missing heatmap | Missing value pattern |
-| Consensus heatmap | Co-association matrix $A$ |
-| Radar chart | Normalised multi-metric comparison |
-| Violin plot | Per-cluster feature distribution |
-| Pair plot | Scatter matrix (≤6 features) |
-| Parallel coordinates | High-dim feature structure |
-| Sunburst | Cluster membership hierarchy |
-| Feature histograms | Per-cluster overlaid histograms |
-| Box plots | Per-cluster feature box-and-whisker |
-| Cluster size bar | Cluster membership counts |
-| Dendrogram | Hierarchical tree (≤500 samples) |
-| Stability bars | ARI per algorithm with grade colour codes |
-| Perturbation curve | ARI vs noise level ± 1σ bands |
-| Consensus CDF | Empirical CDF of co-association values |
-| Noise response chart | ARI vs perturbation regime/level heatmap |
-| ARI box plots | Bootstrap ARI distribution per algorithm |
-| Persistence heatmap | Per-cluster persistence across perturbation levels |
-| Metrics table | Colour-coded normalised comparison table |
-| Hopkins gauge | Clusterability $H$ speedometer |
-| k-NN distance | Sorted $k$-NN distances with ε suggestion |
-| Overlap heatmap | Pairwise cluster overlap matrix |
-| Score timeline | Metric scores vs run index |
+| Chart | Description | v1 | v2 |
+|-------|-------------|----|----|
+| 2D scatter | PCA/t-SNE/UMAP cluster colouring | ✓ | ✓ |
+| 3D scatter | Interactive rotation | ✓ | ✓ |
+| Silhouette bar | Per-sample silhouette sorted by cluster | ✓ | ✓ |
+| Elbow curve | WCSS vs k with kneedle detection | ✓ | ✓ |
+| Silhouette curve | S(k) with optimal k marker | ✓ | ✓ |
+| Gap statistic | Gap(k) ± 1 SE with optimal k marker | ✓ | ✓ |
+| PCA scree | Cumulative explained variance | ✓ | ✓ |
+| PCA biplot | PC1 vs PC2 with loading vectors | ✓ | ✓ |
+| Radar chart | Normalised multi-metric comparison | ✓ | ✓ |
+| Correlation heatmap | Feature correlation matrix | ✓ | ✓ |
+| Missing heatmap | Missing value pattern | ✓ | ✓ |
+| Consensus heatmap | Co-association matrix $A$ | ✓ | ✓ |
+| Violin plot | Per-cluster feature distribution | ✓ | ✓ |
+| Pair plot | Scatter matrix (≤6 features) | ✓ | ✓ |
+| Sunburst | Cluster membership hierarchy | ✓ | ✓ |
+| Feature histograms | Per-cluster overlaid histograms | ✓ | ✓ |
+| Box plots | Per-cluster feature box-and-whisker | ✓ | ✓ |
+| Cluster size bar | Membership counts | ✓ | ✓ |
+| Dendrogram | Hierarchical tree (≤500 samples) | ✓ | ✓ |
+| Stability bars | ARI per algorithm with grade colours | ✓ | ✓ |
+| Perturbation curve | ARI vs noise level ± 1σ bands | ✓ | ✓ |
+| Consensus CDF | Empirical CDF of $A$ entries | ✓ | ✓ |
+| Hopkins gauge | Clusterability $H$ speedometer | ✓ | ✓ |
+| k-NN distance | Sorted distances with ε suggestion | ✓ | ✓ |
+| Overlap heatmap | Pairwise cluster overlap matrix | ✓ | ✓ |
+| Metrics table | Colour-coded comparison table | ✓ | ✓ |
+| Noise response chart | ARI vs regime/level heatmap | — | ✓ |
+| ARI box plots | Bootstrap ARI distributions | — | ✓ |
+| Persistence heatmap | Per-cluster persistence levels | — | ✓ |
+| Score timeline | Metric scores vs run index | — | ✓ |
 
-**Dimensionality Reduction:**
+### Dimensionality Reduction Mathematics
 
-**PCA**: $Z = XW_k$ (top-$k$ eigenvectors of $X^\top X$). Explained variance ratio $\mathrm{EVR}_l = \lambda_l / \sum_i \lambda_i$.
+**PCA — Principal Component Analysis**
 
-**t-SNE**: KL divergence minimisation with perplexity-adaptive bandwidth. High-dimensional symmetrised similarities $p_{ij}$; low-dimensional Student-t kernel $q_{ij} \propto (1 + \|y_i - y_j\|^2)^{-1}$. Cost: $\mathcal{L} = \mathrm{KL}(P\|Q)$.
+Embedding $Z = XW_k$ where $W_k \in \mathbb{R}^{d \times k}$ holds the top-$k$ eigenvectors of the sample covariance $\hat{\Sigma} = \frac{1}{n-1}(X-\bar{X})^\top(X-\bar{X})$. Equivalently, the right singular vectors of $X - \bar{X}$ from SVD $(X-\bar{X}) = U\Sigma V^\top$. The $l$-th principal component has variance $\lambda_l$ (the $l$-th eigenvalue) and explained variance ratio:
 
-**UMAP**: Fuzzy simplicial complex with Riemannian metric and stochastic gradient descent on cross-entropy $\mathcal{L}_{\mathrm{UMAP}}$.
+$$\text{EVR}_l = \frac{\lambda_l}{\sum_{r=1}^d \lambda_r}$$
+
+**t-SNE — t-Distributed Stochastic Neighbour Embedding**
+
+High-dimensional pairwise similarities with perplexity-controlled bandwidth $\sigma_i$:
+
+$$p_{j|i} = \frac{\exp(-\|x_i - x_j\|^2 / 2\sigma_i^2)}{\sum_{k \neq i} \exp(-\|x_i - x_k\|^2 / 2\sigma_i^2)}, \quad p_{ij} = \frac{p_{j|i} + p_{i|j}}{2n}$$
+
+Low-dimensional Student-t similarities (heavy tails combat the crowding problem):
+
+$$q_{ij} = \frac{(1 + \|y_i - y_j\|^2)^{-1}}{\sum_{k \neq l} (1 + \|y_k - y_l\|^2)^{-1}}$$
+
+Minimised objective:
+
+$$\mathcal{L}_\text{KL} = \text{KL}(P \| Q) = \sum_{i \neq j} p_{ij} \log \frac{p_{ij}}{q_{ij}}$$
+
+Gradient: $\frac{\partial \mathcal{L}}{\partial y_i} = 4\sum_j (p_{ij} - q_{ij})(y_i - y_j)(1+\|y_i-y_j\|^2)^{-1}$.
+
+**UMAP — Uniform Manifold Approximation and Projection**
+
+Fuzzy topological cross-entropy minimisation as described in the manifold family section. UMAP preserves both local and global structure better than t-SNE for large datasets.
 
 ---
 
 ## Dashboard Architecture
 
+### UnSuPERvIsED-I Navigation
+
 ```
-Navigation Tabs
-├── 📤 Upload / 🎲 Samples / 🔍 Deep Profile   — Data ingestion and exploration
-├── ⚙️  Preprocessing                           — Pipeline configuration and Hopkins test
-├── 🧬 Algorithm Selection                      — Family browser, tag filters, recommendations
-├── ⚡ Run & Evaluate                           — Batch execution, elbow, gap, Pareto front
-├── 📊 Visualizations                           — Full visualisation suite
-├── 🧪 Stability Lab                            — 5-regime stability, grades, comparator
-├── 🤖 AI Oracle                                — Gemini 2.0 intelligence, multi-mode analysis
-└── 💾 Export Suite                             — Labels, metrics, consensus, stability JSON
+Tab 1: 📊 Data Profile      — Column stats, correlation matrix, missing heatmap
+Tab 2: ⚙️  Preprocessing    — Pipeline config, Hopkins test, k-NN ε profile
+Tab 3: 🧬 Algorithms        — Registry browser, family filter, parameter config
+Tab 4: 🚀 Run Clustering    — Batch execution, elbow/gap, results table, radar
+Tab 5: 📈 Visualizations    — 2D/3D scatter, silhouette, PCA, violin, pair, sunburst
+Tab 6: 🔒 Stability         — Bootstrap ARI, consensus heatmap, perturbation curves
+Tab 7: 🤖 AI Insights       — Gemini analysis, quick templates, export
 ```
 
-The lazy-loading architecture imports heavy modules (stability, consensus, visualisation) only when the user navigates to the relevant tab, keeping initial startup time minimal. Session state stores all intermediate results with downstream-reset logic ensuring consistency.
+### UnSuPERvIsED-II Navigation
+
+```
+Page 1: 📤 Upload / 🎲 Samples / 🔍 Deep Profile  — Ingestion and exploration
+Page 2: ⚙️  Preprocessing                          — Pipeline config and Hopkins
+Page 3: 🧬 Algorithm Selection                     — Family browser, tag filters
+Page 4: ⚡ Run & Evaluate                          — Adaptive batch execution, Pareto
+Page 5: 📊 Visualizations                          — Full 30+ chart suite
+Page 6: 🧪 Stability Lab                           — 5-regime stability, grades
+Page 7: 🤖 AI Oracle                               — Gemini 2.0 multi-mode analysis
+Page 8: 💾 Export Suite                            — Labels, metrics, consensus JSON
+```
+
+**Adaptive execution engine features (v2):**
+
+- Dataset size classification: TINY / SMALL / MEDIUM / LARGE / XLARGE
+- `_SIZE_BLACKLIST`: automatically filters $O(n^2)$ algorithms for XLARGE datasets
+- `DBSCANParamTuner`: auto-estimates $\varepsilon$ and `min_samples`
+- **Thread-safe LRU cache** (200 entries): keyed by `(algorithm_id, data_hash, params_hash)`
+- **Runtime tracker** via exponential moving average: $\hat{T}_j^{(t+1)} = (1-\alpha)\hat{T}_j^{(t)} + \alpha T_j^{(t)}$, $\alpha = 0.3$
+- **Lazy loading**: heavy modules imported only when the user navigates to their tab
 
 ---
 
 ## Installation & Usage
+
+### UnSuPERvIsED-I
+
+```bash
+git clone https://github.com/Devanik21/Substrata-Matrix.git
+cd Substrata-Matrix/Basic_Cluster
+pip install -r requirements.txt
+streamlit run UnSuPERvIsED.py
+```
+
+### UnSuPERvIsED-II
 
 ```bash
 git clone https://github.com/Devanik21/Substrata-Matrix.git
@@ -926,66 +1229,94 @@ pip install -r requirements.txt
 streamlit run UnSuPERvIsED.py
 ```
 
-**Supported formats:** CSV, Excel, JSON, Parquet, TSV — up to 500,000 rows × 2,000 columns.
+### Gemini AI Setup (both versions)
+
+```toml
+# .streamlit/secrets.toml
+GEMINI_API_KEY = "your-key-here"
+```
+
+**Supported input formats:** CSV, Excel (xlsx/xls), JSON, Parquet, TSV — up to 500,000 rows × 2,000 columns.
 
 ---
 
 ## Dependencies
 
+### UnSuPERvIsED-I
+
 ```
-streamlit
-numpy
-pandas
-scikit-learn
-scipy
-plotly
-hdbscan
-sklearn-extra
-umap-learn
-tensorflow          # Autoencoder-KMeans
-minisom             # SOM Clustering
-skfuzzy             # Fuzzy/Possibilistic C-Means
-google-generativeai # AI Oracle
+streamlit           # Dashboard framework
+numpy               # Numerical computing
+pandas              # Tabular data handling
+scikit-learn        # Core ML algorithms
+scipy               # Scientific computing, linkage, stats
+plotly              # Interactive visualisations
+hdbscan             # HDBSCAN implementation
+sklearn-extra       # K-Medoids (sklearn_extra.cluster)
+google-generativeai # Gemini AI integration
+umap-learn          # UMAP dimensionality reduction
+```
+
+### UnSuPERvIsED-II (adds)
+
+```
+tensorflow          # Autoencoder-KMeans (Keras backend)
+minisom             # Self-Organising Map implementation
+skfuzzy             # Fuzzy C-Means and Possibilistic C-Means
 ```
 
 ---
 
-## Difference from UnSuPERvIsED-I
+## Repository Structure
 
-| Feature | UnSuPERvIsED-I | UnSuPERvIsED-II |
-|---------|----------------|-----------------|
-| Total lines | ~12,000 | ~14,700 |
-| Algorithm count | 19 | 60+ |
-| Algorithm families | 5 | 12 |
-| Neural clustering | ✗ | ✓ (Autoencoder, SOM) |
-| Fuzzy clustering | ✗ | ✓ (FCM, PCM) |
-| Manifold pipelines | ✗ | ✓ (Isomap, LLE, UMAP+HDBSCAN) |
-| Ensemble methods | ✗ | ✓ (Voting, Random Subspace) |
-| Grid-based | ✗ | ✓ (WaveCluster) |
-| Message-passing | Affinity Prop. | Full AP spec + enhanced |
-| Perturbation regimes | 3 | 5 (+ Laplacian, Subset) |
-| Pareto front selection | ✗ | ✓ |
-| External metrics | ✗ | ✓ (ARI, AMI, NMI, Purity) |
-| Adaptive param tuning | ✗ | ✓ (DBSCANParamTuner) |
-| LRU result cache | Disk-based | In-memory, thread-safe |
-| Dataset size blacklist | ✗ | ✓ |
-| Runtime tracker | ✗ | ✓ (EMA scheduling) |
-| Gemini AI | ✓ Flash Lite (template tab) | ✓ **2.0 Flash Lite (AI Oracle — dedicated page, multi-mode)** |
-| Stability grades | A/B/C/D | S+/A/B/C/D |
-| Persistence analysis | ✗ | ✓ |
-| k-sweep trend analysis | Basic | ✓ (KSweepAnalyser) |
+```
+Substrata-Matrix/
+├── Basic_Cluster/                    ← UnSuPERvIsED-I
+│   ├── UnSuPERvIsED.py               # Main Streamlit app
+│   ├── clustering_registry.py        # Algorithm registry
+│   ├── clustering_runner.py          # Parallel execution engine
+│   ├── evaluation.py                 # Metric computation
+│   ├── preprocessing.py              # Preprocessing pipeline
+│   ├── stability.py                  # Bootstrap stability
+│   ├── stability_consensus.py        # Consensus matrices
+│   ├── visualization.py              # Plotly visualisations
+│   └── requirements.txt
+│
+└── Intermediate_Cluster/             ← UnSuPERvIsED-II
+    ├── UnSuPERvIsED.py               # Main Streamlit app (lazy-loaded)
+    ├── clustering_registry.py        # 60+ algorithm specs, 12 families
+    ├── clustering_runner.py          # Cache-aware adaptive runner
+    ├── evaluation.py                 # Internal + external + Pareto
+    ├── preprocessing.py              # Deep profiling + full pipeline
+    ├── stability.py                  # 5-regime stability + persistence
+    ├── consensus.py                  # Co-association + PAC
+    ├── visualization.py              # 30+ Plotly charts
+    └── requirements.txt
+```
 
 ---
 
 ## Citation
 
-If you use UnSuPERvIsED-II in research or build upon it, please cite:
+If you use UnSuPERvIsED-I or UnSuPERvIsED-II in research or build upon them, please cite:
 
 ```bibtex
+@software{devanik2025unsupervised1,
+  author       = {Devanik},
+  title        = {UnSuPERvIsED-I: A Clustering Intelligence Lab
+                  with 19+ Algorithms, Multi-Metric Evaluation,
+                  Consensus Clustering, and AI-Powered Insights},
+  year         = {2025},
+  month        = {May},
+  version      = {1.0},
+  url          = {https://github.com/Devanik21/Substrata-Matrix},
+  note         = {Basic\_Cluster module of the Substrata-Matrix repository}
+}
+
 @software{devanik2026unsupervised2,
   author       = {Devanik},
   title        = {UnSuPERvIsED-II: A 60-Algorithm Clustering Intelligence System
-                  with Adaptive Execution, Multi-Family Coverage,
+                  with Adaptive Execution, 12-Family Coverage,
                   and Five-Regime Stability Certification},
   year         = {2026},
   month        = {May},
@@ -995,53 +1326,65 @@ If you use UnSuPERvIsED-II in research or build upon it, please cite:
 }
 ```
 
-**Core algorithmic references:**
+---
 
+## References
+
+**Centroid & Partitional:**
 - Lloyd, S. P. (1982). Least squares quantization in PCM. *IEEE Trans. Inf. Theory*, 28(2), 129–137.
 - Arthur, D., & Vassilvitskii, S. (2007). k-means++: The advantages of careful seeding. *SODA*, 1027–1035.
-- Ester, M., et al. (1996). A density-based algorithm for discovering clusters. *KDD*, 226–231.
-- Campello, R. J. G. B., et al. (2013). Density-based clustering based on hierarchical density estimates. *PAKDD*, 160–172.
-- Bezdek, J. C. (1981). *Pattern Recognition with Fuzzy Objective Function Algorithms*. Plenum Press.
-- Krishnapuram, R., & Keller, J. (1993). A possibilistic approach to clustering. *IEEE Trans. Fuzzy Syst.*, 1(2), 98–110.
-- Xie, X. L., & Beni, G. (1991). A validity measure for fuzzy clustering. *IEEE TPAMI*, 13(8), 841–847.
-- Tenenbaum, J. B., de Silva, V., & Langford, J. C. (2000). A global geometric framework for nonlinear dimensionality reduction. *Science*, 290(5500), 2319–2323.
-- Roweis, S. T., & Saul, L. K. (2000). Nonlinear dimensionality reduction by locally linear embedding. *Science*, 290(5500), 2323–2326.
-- McInnes, L., Healy, J., & Melville, J. (2018). UMAP: Uniform Manifold Approximation and Projection. *arXiv:1802.03426*.
-- Kohonen, T. (1990). The self-organizing map. *Proc. IEEE*, 78(9), 1464–1480.
-- Xing, E., Jordan, M., Russell, S., & Ng, A. (2002). Distance metric learning with application to clustering. *NeurIPS*.
-- Frey, B. J., & Dueck, D. (2007). Clustering by passing messages between data points. *Science*, 315(5814), 972–976.
-- von Luxburg, U. (2007). A tutorial on spectral clustering. *Stat. Comput.*, 17(4), 395–416.
-- Dempster, A. P., Laird, N. M., & Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. *J. R. Stat. Soc. B*, 39(1), 1–38.
-- Monti, S., et al. (2003). Consensus Clustering. *Machine Learning*, 52(1–2), 91–118.
-- Zhang, T., Ramakrishnan, R., & Livny, M. (1996). BIRCH. *SIGMOD Record*, 25(2), 103–114.
-- Davies, D. L., & Bouldin, D. W. (1979). A cluster separation measure. *IEEE TPAMI*, 1(2), 224–227.
-- Rousseeuw, P. J. (1987). Silhouettes. *J. Comput. Appl. Math.*, 20, 53–65.
-- Liu, F. T., Ting, K. M., & Zhou, Z.-H. (2008). Isolation forest. *ICDM*, 413–422.
-- Tibshirani, R., Walther, G., & Hastie, T. (2001). Gap statistic. *J. R. Stat. Soc. B*, 63(2), 411–423.
-- Caliński, T., & Harabász, J. (1974). A dendrite method for cluster analysis. *Commun. Stat.*, 3(1), 1–27.
+- Sculley, D. (2010). Web-scale k-means clustering. *WWW*, 1177–1178. [MiniBatch]
+
+**Hierarchical:**
+- Ward, J. H. (1963). Hierarchical grouping to optimize an objective function. *JASA*, 58, 236–244.
+- Zhang, T., Ramakrishnan, R., & Livny, M. (1996). BIRCH: an efficient data clustering method. *SIGMOD*, 103–114.
+- Kaufman, L., & Rousseeuw, P. J. (1990). *Finding Groups in Data: An Introduction to Cluster Analysis*. Wiley. [DIANA]
+
+**Density:**
+- Ester, M., Kriegel, H.-P., Sander, J., & Xu, X. (1996). A density-based algorithm for discovering clusters. *KDD*, 226–231. [DBSCAN]
+- Campello, R. J. G. B., Moulavi, D., & Sander, J. (2013). Density-based clustering based on hierarchical density estimates. *PAKDD*, 160–172. [HDBSCAN]
+- Ankerst, M., Breunig, M. M., Kriegel, H.-P., & Sander, J. (1999). OPTICS. *SIGMOD Record*, 28(2), 49–60.
+- Comaniciu, D., & Meer, P. (2002). Mean shift: a robust approach toward feature space analysis. *IEEE TPAMI*, 24(5), 603–619.
 - Hinneburg, A., & Keim, D. (1998). An efficient approach to clustering in large multimedia databases with noise. *KDD*, 58–65. [DENCLUE]
-- Johnson, W. B., & Lindenstrauss, J. (1984). Extensions of Lipschitz mappings into a Hilbert space. *Contemp. Math.*, 26, 189–206. [JL Lemma for Projected K-Means]
-- Wang, W., Yang, J., & Muntz, R. (1997). STING. *VLDB*, 186–195. [Grid-based]
+
+**Distribution & Probabilistic:**
+- Dempster, A. P., Laird, N. M., & Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. *JRSS-B*, 39(1), 1–38.
+- Frey, B. J., & Dueck, D. (2007). Clustering by passing messages between data points. *Science*, 315(5814), 972–976. [AP]
+
+**Spectral & Graph:**
+- von Luxburg, U. (2007). A tutorial on spectral clustering. *Stat. Comput.*, 17(4), 395–416.
+- Shi, J., & Malik, J. (2000). Normalized cuts and image segmentation. *IEEE TPAMI*, 22(8), 888–905.
+
+**Evaluation:**
+- Rousseeuw, P. J. (1987). Silhouettes. *J. Comput. Appl. Math.*, 20, 53–65.
+- Davies, D. L., & Bouldin, D. W. (1979). A cluster separation measure. *IEEE TPAMI*, 1(2), 224–227.
+- Caliński, T., & Harabász, J. (1974). A dendrite method for cluster analysis. *Commun. Stat.*, 3(1), 1–27.
+- Tibshirani, R., Walther, G., & Hastie, T. (2001). Estimating the number of clusters via the gap statistic. *JRSS-B*, 63(2), 411–423.
+- Xie, X. L., & Beni, G. (1991). A validity measure for fuzzy clustering. *IEEE TPAMI*, 13(8), 841–847.
+- Hubert, L., & Arabie, P. (1985). Comparing partitions. *J. Classif.*, 2(1), 193–218. [ARI]
+- Vinh, N. X., Epps, J., & Bailey, J. (2010). Information theoretic measures for clusterings comparison. *JMLR*, 11, 2837–2854. [AMI, NMI]
+- Monti, S., et al. (2003). Consensus clustering. *Mach. Learn.*, 52, 91–118.
+
+**Stability:**
+- Hopkins, B. (1954). A new method for determining the type of distribution of plant individuals. *Ann. Bot.*, 18(2), 213–227.
+- Liu, F. T., Ting, K. M., & Zhou, Z.-H. (2008). Isolation forest. *ICDM*, 413–422.
+- Breunig, M. M., Kriegel, H.-P., Ng, R. T., & Sander, J. (2000). LOF. *SIGMOD*, 93–104.
+
+**Neural & Manifold:**
+- Kohonen, T. (1990). The self-organizing map. *Proc. IEEE*, 78(9), 1464–1480.
+- Tenenbaum, J. B., de Silva, V., & Langford, J. C. (2000). A global geometric framework for nonlinear dimensionality reduction. *Science*, 290(5500), 2319–2323. [Isomap]
+- Roweis, S. T., & Saul, L. K. (2000). Nonlinear dimensionality reduction by locally linear embedding. *Science*, 290(5500), 2323–2326. [LLE]
+- McInnes, L., Healy, J., & Melville, J. (2018). UMAP: Uniform Manifold Approximation and Projection. *arXiv:1802.03426*.
+
+**Fuzzy:**
+- Bezdek, J. C. (1981). *Pattern Recognition with Fuzzy Objective Function Algorithms*. Plenum Press. [FCM]
+- Krishnapuram, R., & Keller, J. (1993). A possibilistic approach to clustering. *IEEE Trans. Fuzzy Syst.*, 1(2), 98–110. [PCM]
+
+**Subspace & Ensemble:**
+- Johnson, W. B., & Lindenstrauss, J. (1984). Extensions of Lipschitz mappings into a Hilbert space. *Contemp. Math.*, 26, 189–206. [JL lemma]
 - Agrawal, R., et al. (1998). Automatic subspace clustering of high dimensional data. *KDD*, 94–105. [CLIQUE]
 
 ---
 
-## Repository Structure
-
-```
-Intermediate_Cluster/
-├── UnSuPERvIsED.py          # Main Streamlit application (~3,558 lines)
-├── clustering_registry.py   # 60+ algorithm specs, 12 families (~1,967 lines)
-├── clustering_runner.py     # Adaptive cache-aware execution engine (~1,367 lines)
-├── evaluation.py            # Metrics, composite scorer, Pareto front (~1,341 lines)
-├── preprocessing.py         # Multi-stage preprocessing pipeline (~1,506 lines)
-├── stability.py             # 5-regime stability + persistence analysis (~1,635 lines)
-├── consensus.py             # Co-association, PAC, cophenetic (~1,561 lines)
-├── visualization.py         # 30+ Plotly chart components (~1,763 lines)
-└── requirements.txt
-```
-
----
-
-*UnSuPERvIsED-II · May 2026 · Devanik · NIT Agartala · Samsung ISWDP Fellow*
-*Part of the Substrata-Matrix project — [github.com/Devanik21/Substrata-Matrix](https://github.com/Devanik21/Substrata-Matrix)*
+*UnSuPERvIsED Series · 2026–2027 · Devanik · NIT Agartala · Samsung ISWDP Fellow*
+*Substrata-Matrix — [github.com/Devanik21/Substrata-Matrix](https://github.com/Devanik21/Substrata-Matrix)*

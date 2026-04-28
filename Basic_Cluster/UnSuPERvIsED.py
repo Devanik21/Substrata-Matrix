@@ -90,70 +90,61 @@ MASTER_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
 
+/* ── CSS Variables ── */
 :root {
-    --bg-primary: #0a0a0f;
+    --bg-primary:   #0a0a0f;
     --bg-secondary: #12121a;
-    --bg-card: #161622;
-    --bg-hover: #1c1c2e;
-    --border: #2a2a3e;
+    --bg-card:      #161622;
+    --bg-hover:     #1c1c2e;
+    --border:       #2a2a3e;
     --text-primary: #e8e8f0;
     --text-secondary: #8888a0;
-    --text-muted: #555570;
-    --accent-cyan: #00f0ff;
+    --text-muted:   #555570;
+    --accent-cyan:  #00f0ff;
     --accent-magenta: #ff00aa;
-    --accent-gold: #ffd700;
+    --accent-gold:  #ffd700;
     --accent-green: #00ff88;
-    --accent-red: #ff4466;
-    --glow-cyan: 0 0 20px rgba(0,240,255,0.15);
+    --accent-red:   #ff4466;
+    --glow-cyan:    0 0 20px rgba(0,240,255,0.15);
     --glow-magenta: 0 0 20px rgba(255,0,170,0.15);
-    --radius: 12px;
-    --radius-sm: 8px;
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --radius:       12px;
+    --radius-sm:    8px;
+    --transition:   all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-html, body {
-    font-family: 'Space Grotesk', sans-serif !important;
+/* ── Font: only on real text nodes, NEVER on the whole st- namespace ── */
+html, body { font-family: 'Space Grotesk', sans-serif; }
+
+p, span:not(.material-icons), div, label,
+h1, h2, h3, h4, h5, h6,
+.stMarkdown, .stText,
+[data-testid="stMarkdownContainer"],
+[data-testid="stText"] {
+    font-family: 'Space Grotesk', sans-serif;
 }
 
-/* Apply Space Grotesk broadly but NEVER override Material Icons */
-[class*="st-"]:not(.material-icons):not([data-testid*="Icon"]) {
-    font-family: 'Space Grotesk', sans-serif !important;
-}
-
-/* Explicitly restore Material Icons wherever Streamlit uses them */
-.material-icons,
-span.material-icons,
-[data-testid="stIconMaterial"],
-button > div > span,
-.stSelectbox span[aria-hidden],
-.stMultiSelect span[aria-hidden] {
-    font-family: 'Material Icons' !important;
-    font-feature-settings: 'liga' !important;
-    -webkit-font-feature-settings: 'liga' !important;
-    font-style: normal !important;
-    font-weight: normal !important;
-    letter-spacing: normal !important;
-    text-transform: none !important;
-}
-
+/* ── App background ── */
 .stApp {
     background: var(--bg-primary) !important;
     color: var(--text-primary) !important;
 }
 
-header[data-testid="stHeader"] { background: transparent !important; }
+/* ── Header ── */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+}
 
+/* ── Sidebar ── */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #0d0d14 0%, #0a0a12 100%) !important;
     border-right: 1px solid var(--border) !important;
 }
-
 section[data-testid="stSidebar"] .stMarkdown p,
-section[data-testid="stSidebar"] .stMarkdown span,
 section[data-testid="stSidebar"] label {
     color: var(--text-primary) !important;
 }
 
+/* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
     background: var(--bg-secondary) !important;
     border-radius: var(--radius) !important;
@@ -161,7 +152,6 @@ section[data-testid="stSidebar"] label {
     gap: 4px !important;
     border: 1px solid var(--border) !important;
 }
-
 .stTabs [data-baseweb="tab"] {
     background: transparent !important;
     color: var(--text-secondary) !important;
@@ -170,18 +160,17 @@ section[data-testid="stSidebar"] label {
     padding: 8px 16px !important;
     transition: var(--transition) !important;
 }
-
 .stTabs [data-baseweb="tab"][aria-selected="true"] {
     background: linear-gradient(135deg, rgba(0,240,255,0.12), rgba(255,0,170,0.08)) !important;
     color: var(--accent-cyan) !important;
     box-shadow: var(--glow-cyan) !important;
 }
-
 .stTabs [data-baseweb="tab-panel"] {
     background: transparent !important;
     padding-top: 1rem !important;
 }
 
+/* ── Metric cards ── */
 div[data-testid="stMetric"] {
     background: var(--bg-card) !important;
     border: 1px solid var(--border) !important;
@@ -190,25 +179,23 @@ div[data-testid="stMetric"] {
     box-shadow: var(--glow-cyan) !important;
     transition: var(--transition) !important;
 }
-
 div[data-testid="stMetric"]:hover {
     border-color: var(--accent-cyan) !important;
     transform: translateY(-2px) !important;
 }
-
 div[data-testid="stMetric"] label {
     color: var(--text-secondary) !important;
     font-size: 0.75rem !important;
     text-transform: uppercase !important;
     letter-spacing: 1px !important;
 }
-
-div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+div[data-testid="stMetricValue"] {
     color: var(--accent-cyan) !important;
     font-weight: 700 !important;
     font-family: 'JetBrains Mono', monospace !important;
 }
 
+/* ── Buttons (text only, not icon buttons) ── */
 .stButton > button {
     background: linear-gradient(135deg, rgba(0,240,255,0.15), rgba(255,0,170,0.10)) !important;
     color: var(--accent-cyan) !important;
@@ -221,7 +208,6 @@ div[data-testid="stMetric"] [data-testid="stMetricValue"] {
     letter-spacing: 1px !important;
     font-family: 'Space Grotesk', sans-serif !important;
 }
-
 .stButton > button:hover {
     background: linear-gradient(135deg, rgba(0,240,255,0.25), rgba(255,0,170,0.18)) !important;
     border-color: var(--accent-cyan) !important;
@@ -229,52 +215,67 @@ div[data-testid="stMetric"] [data-testid="stMetricValue"] {
     transform: translateY(-1px) !important;
 }
 
-/* Inputs */
-.stNumberInput > div > div > input,
-.stTextInput > div > div > input {
+/* ── Inputs: text & number only ── */
+.stTextInput input,
+.stNumberInput input {
     background: var(--bg-card) !important;
     color: var(--text-primary) !important;
     border: 1px solid var(--border) !important;
     border-radius: var(--radius-sm) !important;
 }
 
-/* Selectbox / MultiSelect — only style the outer baseweb shell, never inner icon spans */
-.stSelectbox [data-baseweb="select"] > div:first-child,
-.stMultiSelect [data-baseweb="select"] > div:first-child {
+/* ── Selectbox / MultiSelect: style the outer container border only.
+       The inner value text + native chevron svg are left completely alone. ── */
+.stSelectbox [data-baseweb="select"],
+.stMultiSelect [data-baseweb="select"] {
     background: var(--bg-card) !important;
-    border: 1px solid var(--border) !important;
     border-radius: var(--radius-sm) !important;
-    color: var(--text-primary) !important;
 }
 
-/* Sidebar collapse button — transparent so Streamlit's native SVG chevron shows */
-button[data-testid="collapsedControl"] {
-    background: transparent !important;
-    border: none !important;
-}
-button[data-testid="collapsedControl"] svg {
-    fill: var(--text-secondary) !important;
+/* ── Sliders ── */
+.stSlider [data-baseweb="slider"] [role="progressbar"] {
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta)) !important;
 }
 
-.stSlider > div > div > div {
-    background: var(--border) !important;
-}
-
+/* ── DataFrames ── */
 .stDataFrame {
     border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
 }
 
+/* ── Expanders ── */
 div[data-testid="stExpander"] {
     background: var(--bg-card) !important;
     border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
 }
 
+/* ── Progress bar ── */
 .stProgress > div > div > div {
     background: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta)) !important;
 }
 
+/* ── File uploader ── */
+[data-testid="stFileUploader"] > section {
+    background: var(--bg-card) !important;
+    border: 1px dashed var(--border) !important;
+    border-radius: var(--radius) !important;
+}
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-cyan); }
+
+/* ── Notifications / alerts ── */
+div[data-testid="stNotification"] {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ── Custom utility classes (used inline via st.markdown) ── */
 .glass-card {
     background: rgba(18,18,26,0.85);
     backdrop-filter: blur(16px);
@@ -293,6 +294,7 @@ div[data-testid="stExpander"] {
 .hero-title {
     font-size: 2.4rem;
     font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
     background: linear-gradient(135deg, #00f0ff, #ff00aa, #ffd700);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -303,6 +305,7 @@ div[data-testid="stExpander"] {
 
 .hero-subtitle {
     font-size: 0.95rem;
+    font-family: 'Space Grotesk', sans-serif;
     color: var(--text-secondary);
     margin-top: 2px;
     letter-spacing: 2px;
@@ -316,9 +319,9 @@ div[data-testid="stExpander"] {
     border-radius: 20px;
     padding: 4px 12px;
     font-size: 0.72rem;
+    font-family: 'JetBrains Mono', monospace;
     color: var(--accent-cyan);
     margin: 2px 3px;
-    font-family: 'JetBrains Mono', monospace;
 }
 
 .metric-row {
@@ -328,7 +331,6 @@ div[data-testid="stExpander"] {
     padding: 6px 0;
     border-bottom: 1px solid rgba(42,42,62,0.5);
 }
-
 .metric-label { color: var(--text-secondary); font-size: 0.82rem; }
 .metric-value {
     color: var(--accent-cyan);
@@ -337,37 +339,14 @@ div[data-testid="stExpander"] {
 }
 
 .status-success { color: var(--accent-green); }
-.status-fail { color: var(--accent-red); }
-.status-warn { color: var(--accent-gold); }
+.status-fail    { color: var(--accent-red);   }
+.status-warn    { color: var(--accent-gold);  }
 
 @keyframes pulse-glow {
     0%, 100% { box-shadow: 0 0 10px rgba(0,240,255,0.1); }
-    50% { box-shadow: 0 0 25px rgba(0,240,255,0.3); }
+    50%       { box-shadow: 0 0 25px rgba(0,240,255,0.3); }
 }
-
-.pulse-border {
-    animation: pulse-glow 3s ease-in-out infinite;
-}
-
-.stFileUploader > div {
-    background: var(--bg-card) !important;
-    border: 1px dashed var(--border) !important;
-    border-radius: var(--radius) !important;
-}
-
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover { background: var(--accent-cyan); }
-
-div[data-testid="stNotification"] {
-    background: var(--bg-card) !important;
-    border: 1px solid var(--border) !important;
-    color: var(--text-primary) !important;
-}
+.pulse-border { animation: pulse-glow 3s ease-in-out infinite; }
 </style>
 """
 st.markdown(MASTER_CSS, unsafe_allow_html=True)

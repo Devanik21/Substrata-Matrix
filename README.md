@@ -337,7 +337,16 @@ HDBSCAN extends DBSCAN to a full density hierarchy via the **mutual reachability
 
 $$d_{\text{mreach},k}(a, b) = \max\bigl(\text{core}_k(a),\; \text{core}_k(b),\; d(a,b)\bigr)$$
 
-where $\text{core}_k(a) = d(a, \text{kNN}_k(a))$ is the core distance of $a$ to its $k$-th nearest neighbour. Mutual reachability smooths density fluctuations: $d_{\text{mreach}} \geq d$ always holds.
+where 
+
+```math
+\text{core}_k(a) = d(a, \text{kNN}_k(a))
+```
+ is the core distance of $a$ to its $k$-th nearest neighbour. Mutual reachability smooths density fluctuations: 
+ ```math
+ d_{\text{mreach}} \geq d
+```
+always holds.
 
 The algorithm:
 1. Build the complete mutual-reachability graph $G_\text{mr}$
@@ -538,7 +547,12 @@ Encoder architecture: Input($d$) $\to$ Dense(128, ReLU) $\to$ Dense(64, ReLU) $\
 
 $$\frac{\partial \mathcal{L}_\text{total}}{\partial \phi} = \frac{\partial \mathcal{L}_\text{recon}}{\partial \phi} + \lambda_c \frac{\partial \mathcal{L}_\text{cluster}}{\partial \phi}$$
 
-The cluster loss gradient $\frac{\partial \mathcal{L}_\text{cluster}}{\partial z_i} = 2(z_i - \mu_{c(i)})$ encourages latent representations to form tight clusters.
+The cluster loss gradient 
+
+```math
+\frac{\partial \mathcal{L}_\text{cluster}}{\partial z_i} = 2(z_i - \mu_{c(i)})
+```
+encourages latent representations to form tight clusters.
 
 ---
 

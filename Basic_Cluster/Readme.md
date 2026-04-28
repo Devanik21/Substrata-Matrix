@@ -1,5 +1,5 @@
 
-#  UnSuPERvIsED-I 
+#  UnSuPERvIsED-I : The Fundamental Clustering Intelligence System
 
 <img width="1672" height="941" alt="ChatGPT Image Apr 28, 2026, 07_21_20 PM" src="https://github.com/user-attachments/assets/c6a8e662-0b32-40af-a693-b61480690f68" />
 

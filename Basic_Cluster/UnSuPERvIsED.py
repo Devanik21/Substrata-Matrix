@@ -330,7 +330,6 @@ div[data-testid="stNotification"] {
     border: 1px solid var(--border) !important;
     color: var(--text-primary) !important;
 }
-</style>
 
 /* 1. Fix the sidebar collapse icon rendering as text */
 .material-symbols-rounded, 
@@ -361,6 +360,8 @@ div[data-baseweb="select"] svg {
     opacity: 1 !important;
     visibility: visible !important;
 }
+
+</style>
 
 """
 

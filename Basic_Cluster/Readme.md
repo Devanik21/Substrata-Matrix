@@ -58,13 +58,15 @@ AlgorithmFamily
 The canonical centroid algorithm. Given $n$ points $\{x_i\}_{i=1}^n \subset \mathbb{R}^d$ and $k$ clusters, K-Means minimises the within-cluster sum of squares (WCSS):
 
 ```math
-\underset{C}{\operatorname{arg\,min}} \sum_{j=1}^{k} \sum_{x_i \in C_j} \|x_i - \mu_j\|_2^2
+$$\underset{C}{\arg\min} \sum_{j=1}^{k} \sum_{x_i \in C_j} \|x_i - \mu_j\|_2^2$$
+
 ```
 
 where $\mu_j = \frac{1}{|C_j|}\sum_{x_i \in C_j} x_i$ is the centroid of cluster $j$. The Lloyd–Forgy algorithm alternates the **E-step** (nearest-centroid assignment):
 
 ```math
-c(i) = \underset{j \in \{1,\ldots,k\}}{\operatorname{arg\,min}}\ \|x_i - \mu_j\|_2^2
+$$c(i) = \underset{j \in \{1,\ldots,k\}}{\arg\min}\ \|x_i - \mu_j\|_2^2$$
+
 ```
 
 and the **M-step** (centroid recomputation) until convergence. Each step is individually optimal given the other, constituting coordinate descent on the joint WCSS objective. Convergence to a local minimum is guaranteed in finite steps since the number of distinct partitions is bounded by $k^n$; the WCSS is non-increasing at every iteration.
@@ -102,7 +104,8 @@ This harmonic learning rate schedule satisfies the Robbins-Monro conditions $\su
 A robust generalisation: medoids $m_j$ must be actual data points, minimising total dissimilarity:
 
 ```math
-\underset{m \subset X,\, |m|=k}{\operatorname{arg\,min}} \sum_{j=1}^k \sum_{x_i \in C_j} d(x_i, m_j)
+$$\underset{m \subset X,\, |m|=k}{\arg\min} \sum_{j=1}^k \sum_{x_i \in C_j} d(x_i, m_j)$$
+
 ```
 
 for arbitrary dissimilarity $d$. The PAM (Partitioning Around Medoids) algorithm evaluates swap cost $\Delta_{jh}$ for every medoid $m_j$ and non-medoid $x_h$, accepting swaps with $\Delta_{jh} < 0$. Unlike K-Means, K-Medoids is robust to outliers and applicable to non-Euclidean spaces (Jaccard, cosine, DTW). **K-Medoids++** provides an $O(\log k)$ approximation guarantee analogous to K-Means++.
@@ -117,7 +120,8 @@ for arbitrary dissimilarity $d$. The PAM (Partitioning Around Medoids) algorithm
 A divisive hierarchical strategy that iteratively bisects the cluster with maximum intra-cluster variance:
 
 ```math
-C^* = \underset{C_j}{\operatorname{arg\,max}} \sum_{x_i \in C_j} \|x_i - \mu_j\|^2
+$$C^* = \underset{C_j}{\arg\max} \sum_{x_i \in C_j} \|x_i - \mu_j\|^2$$
+
 ```
 
 At each step, K-Means with $k=2$ is applied to $C^*$, producing a binary tree. After $k-1$ bisections, $k$ clusters are produced. The total WCSS strictly decreases at every bisection since the two children always have lower combined WCSS than the parent. The strategy {`biggest_intra_cluster_variance`, `largest_cluster`} determines the selection policy.
@@ -512,7 +516,8 @@ The `PreprocessingPipeline` applies the following stages in sequence:
 Sorted $k$-th nearest-neighbour distances with **kneedle algorithm** (maximum discrete second derivative):
 
 ```math
-\hat{\varepsilon} = d_k\!\left[\underset{i}{\operatorname{arg\,max}}\ \bigl|d_k[i+1] - 2\,d_k[i] + d_k[i-1]\bigr|\right]
+$$\hat{\varepsilon} = d_k\!\left[\underset{i}{\arg\max}\ \bigl|d_k[i+1] - 2\,d_k[i] + d_k[i-1]\bigr|\right]$$
+
 ```
 
 This discrete approximation to curvature $\kappa \approx |y''|$ identifies the point of maximum rate-of-change in the sorted distance curve — the optimal density threshold for DBSCAN.

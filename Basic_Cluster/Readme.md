@@ -1,5 +1,8 @@
 
-# 🔬 UnSuPERvIsED-I — Clustering Intelligence Lab
+#  UnSuPERvIsED-I — Clustering Intelligence Lab
+
+<img width="1672" height="941" alt="ChatGPT Image Apr 28, 2026, 07_21_20 PM" src="https://github.com/user-attachments/assets/c6a8e662-0b32-40af-a693-b61480690f68" />
+
 
 > *"Structure is not imposed on data — it is discovered within it."*
 

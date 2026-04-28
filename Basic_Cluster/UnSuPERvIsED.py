@@ -86,6 +86,10 @@ st.set_page_config(
 # DARK THEME CSS
 # ──────────────────────────────────────────────────────────────────
 
+# ──────────────────────────────────────────────────────────────────
+# DARK THEME CSS
+# ──────────────────────────────────────────────────────────────────
+
 MASTER_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
@@ -330,15 +334,31 @@ div[data-testid="stNotification"] {
     border: 1px solid var(--border) !important;
     color: var(--text-primary) !important;
 }
-/* --- STRICT DROPDOWN SANITIZATION --- */
 
-/* 1. Strip any custom background images (often used for custom arrows) */
+/* ────────────────────────────────────────────────────────────────── */
+/* ZERO PERCENT CHEAT COMPONENT SANITIZATION */
+/* ────────────────────────────────────────────────────────────────── */
+
+/* 1. Fix the sidebar collapse icon rendering as text */
+.material-symbols-rounded, 
+.material-symbols-outlined, 
+.material-icons, 
+[data-testid="collapsedControl"] span,
+[data-testid="stSidebarCollapseButton"] span,
+button[kind="header"] span,
+[class*="stIcon"] {
+    font-family: 'Material Symbols Rounded', 'Material Icons', sans-serif !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+/* 2. Strip any custom background images / pseudo-elements in dropdowns */
 div[data-baseweb="select"], 
 div[data-baseweb="select"] > div {
     background-image: none !important;
 }
-
-/* 2. Annihilate all injected pseudo-elements inside the select box */
 div[data-baseweb="select"] *::after,
 div[data-baseweb="select"] *::before {
     content: none !important;
@@ -352,8 +372,8 @@ div[data-baseweb="select"] svg {
     opacity: 1 !important;
     fill: currentColor !important;
 }
-</style>
 
+</style>
 """
 
 

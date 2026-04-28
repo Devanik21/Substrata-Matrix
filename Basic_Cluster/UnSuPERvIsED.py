@@ -111,8 +111,29 @@ MASTER_CSS = """
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-html, body, [class*="st-"] {
+html, body {
     font-family: 'Space Grotesk', sans-serif !important;
+}
+
+/* Apply Space Grotesk broadly but NEVER override Material Icons */
+[class*="st-"]:not(.material-icons):not([data-testid*="Icon"]) {
+    font-family: 'Space Grotesk', sans-serif !important;
+}
+
+/* Explicitly restore Material Icons wherever Streamlit uses them */
+.material-icons,
+span.material-icons,
+[data-testid="stIconMaterial"],
+button > div > span,
+.stSelectbox span[aria-hidden],
+.stMultiSelect span[aria-hidden] {
+    font-family: 'Material Icons' !important;
+    font-feature-settings: 'liga' !important;
+    -webkit-font-feature-settings: 'liga' !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
 }
 
 .stApp {
@@ -208,19 +229,7 @@ div[data-testid="stMetric"] [data-testid="stMetricValue"] {
     transform: translateY(-1px) !important;
 }
 
-/* Sidebar collapse/expand button — let Streamlit's native chevron render cleanly */
-button[data-testid="collapsedControl"],
-button[kind="header"] {
-    background: transparent !important;
-    border: none !important;
-    color: var(--text-secondary) !important;
-}
-button[data-testid="collapsedControl"] svg,
-button[kind="header"] svg {
-    fill: var(--text-secondary) !important;
-}
-
-/* Inputs — target precisely to avoid clashing with Streamlit's native dropdown chevron */
+/* Inputs */
 .stNumberInput > div > div > input,
 .stTextInput > div > div > input {
     background: var(--bg-card) !important;
@@ -229,13 +238,22 @@ button[kind="header"] svg {
     border-radius: var(--radius-sm) !important;
 }
 
-/* Selectbox / MultiSelect: style only the outer wrapper, don't touch inner value+chevron layout */
+/* Selectbox / MultiSelect — only style the outer baseweb shell, never inner icon spans */
 .stSelectbox [data-baseweb="select"] > div:first-child,
 .stMultiSelect [data-baseweb="select"] > div:first-child {
     background: var(--bg-card) !important;
     border: 1px solid var(--border) !important;
     border-radius: var(--radius-sm) !important;
     color: var(--text-primary) !important;
+}
+
+/* Sidebar collapse button — transparent so Streamlit's native SVG chevron shows */
+button[data-testid="collapsedControl"] {
+    background: transparent !important;
+    border: none !important;
+}
+button[data-testid="collapsedControl"] svg {
+    fill: var(--text-secondary) !important;
 }
 
 .stSlider > div > div > div {

@@ -700,7 +700,7 @@ if page == "🏠 Home":
             frames = []
             n_points = 3000  # Increased density for a serious, particle-system aesthetic
             for pk in pattern_keys:
-                df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=7, random_state=42)
+                df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=6, random_state=42)
                 
                 # Calculate angle for a cyclical, deep-analytical color gradient
                 x_col, y_col = df.columns[0], df.columns[1]
@@ -744,8 +744,8 @@ if page == "🏠 Home":
             paper_bgcolor="#07070f", plot_bgcolor="#07070f",
             showlegend=False, coloraxis_showscale=False,
             margin=dict(l=0, r=0, t=25, b=0), height=350,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-9, 9]), 
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-9, 9]),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-15, 15]), 
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-15, 15]),
             updatemenus=[dict(
                 type="buttons", showactive=False,
                 y=-0.05, x=0.5, xanchor="center", yanchor="top",

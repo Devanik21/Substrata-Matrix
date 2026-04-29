@@ -723,6 +723,23 @@ if page == "🏠 Home":
         )
 
         # Apply dark neon layout and lock axes for smooth, deliberate morphing transitions
+        # Build the animated scatter plot using a high-visibility futuristic palette
+        fig_demo = px.scatter(
+            df_anim, x="x", y="y", animation_frame="Pattern", color="color_val",
+            color_continuous_scale=[
+                "#330088",  # Deep radiant indigo (visible against #07070f)
+                "#7700cc",  # Electric violet
+                "#9b59ff",  # Core purple
+                "#ff4daa",  # Plasma pink
+                "#00e5ff",  # Piercing cyan
+                "#00ffcc",  # Radioactive mint
+                "#00e5ff",  # Mirroring back down for a seamless cyclical glow
+                "#9b59ff", 
+                "#330088"
+            ]
+        )
+
+        # Apply dark neon layout and lock axes for smooth, deliberate morphing transitions
         fig_demo.update_layout(
             paper_bgcolor="#07070f", plot_bgcolor="#07070f",
             showlegend=False, coloraxis_showscale=False,
@@ -744,8 +761,8 @@ if page == "🏠 Home":
             )]
         )
         
-        # Micro-markers to support the high density without overlapping into solid blocks
-        fig_demo.update_traces(marker=dict(size=3, opacity=0.75, line=dict(width=0)))
+        # Micro-markers: density remains high, but opacity allows overlapping glows
+        fig_demo.update_traces(marker=dict(size=3, opacity=0.85, line=dict(width=0)))
 
         # Hide the default slider to keep the UI strictly professional
         if "sliders" in fig_demo.layout:

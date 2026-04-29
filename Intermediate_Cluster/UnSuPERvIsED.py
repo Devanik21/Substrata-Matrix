@@ -4,7 +4,7 @@ UnSuPERvIsED.py — Substrata-Matrix Interactive Clustering Workbench
 Streamlit-based interface orchestrating the complete clustering pipeline:
 data ingestion, preprocessing, algorithm selection, parallel execution,
 evaluation, visualization, stability analysis, consensus clustering,
-and interpretability.
+and interpretability.    
 """
 
 # ─────────────────────────────────────────────────────────────────

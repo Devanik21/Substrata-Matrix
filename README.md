@@ -59,7 +59,7 @@ The **UnSuPERvIsED** series is a production-grade unsupervised machine learning 
 | Neural clustering | — | Autoencoder + K-Means, SOM |
 | Fuzzy clustering | — | FCM, PCM |
 | Manifold pipelines | — | Isomap, LLE, UMAP+HDBSCAN |
-| AI assistant | Gemini Flash Lite (tab) | Gemini 2.0 Flash Lite (Oracle page) |
+| AI assistant | Gemini Flash Lite (tab) | Gemini Flash Lite (Oracle page) |
 | LRU result cache | Disk-based | In-memory, thread-safe (200 entries) |
 | Adaptive param tuning | — | DBSCANParamTuner |
 | Stability grades | A/B/C/D | S+/A/B/C/D |
@@ -1293,7 +1293,7 @@ The AI tab passes a structured summary (algorithm names, all metric values, stab
 
 ### UnSuPERvIsED-II: AI Oracle (Page 9)
 
-A fully dedicated **AI Oracle** page powered by **Gemini 2.0 Flash Lite**, with deeper integration and four operational modes:
+A fully dedicated **AI Oracle** page powered by **Gemini  Flash Lite**, with deeper integration and four operational modes:
 
 **Mode 1 — Contextual Result Interpretation:** Passes comprehensive pipeline state (all metrics, stability grades across all five perturbation regimes, preprocessing diagnostics, dataset shape, Hopkins statistic) to Gemini. The model synthesises these into explanations of *why* specific algorithms outperform others on the given data geometry.
 
@@ -1305,7 +1305,7 @@ A fully dedicated **AI Oracle** page powered by **Gemini 2.0 Flash Lite**, with 
 
 | Property | v1 AI Tab | v2 AI Oracle |
 |----------|-----------|--------------|
-| Model | Gemini Flash Lite | Gemini 2.0 Flash Lite |
+| Model | Gemini Flash Lite | Gemini Flash Lite |
 | Placement | Tab 7 | Dedicated Page 9 |
 | Analysis modes | 4 templates | 4 modes + free-form chat |
 | Context depth | Metric values + grades | Full pipeline state + perturbation data |

@@ -805,14 +805,14 @@ enabling predictive scheduling and user-facing ETA estimates.
 
 ## AI Oracle — Gemini Intelligence
 
-UnSuPERvIsED-II features a dedicated **AI Oracle** page — a deeply integrated conversational AI system powered by **Google Gemini 2.0 Flash Lite**, representing a more advanced AI integration than the basic AI tab in UnSuPERvIsED-I.
+UnSuPERvIsED-II features a dedicated **AI Oracle** page — a deeply integrated conversational AI system powered by **Google Gemini Flash Lite**, representing a more advanced AI integration than the basic AI tab in UnSuPERvIsED-I.
 
 ### Architecture
 
 The AI Oracle is implemented as a full standalone page (Page 9 in the navigation) with a stateful conversation history preserved across the session. The core query function:
 
 ```python
-def _gemini_query(prompt: str, context: str = "", model: str = "gemini-2.0-flash-lite") -> str:
+def _gemini_query(prompt: str, context: str = "", model: str = "gemini-flash-lite") -> str:
     """Send a structured query to Gemini with full clustering context."""
 ```
 
@@ -845,7 +845,7 @@ The Oracle gracefully degrades: if no API key is configured, it displays a clear
 
 | Feature | UnSuPERvIsED-I AI Tab | UnSuPERvIsED-II AI Oracle |
 |---------|----------------------|--------------------------|
-| Model | Gemini Flash Lite (legacy) | Gemini 2.0 Flash Lite |
+| Model | Gemini Flash Lite (legacy) | Gemini Flash Lite |
 | Placement | Tab 7 (basic tab) | Dedicated Page 9 |
 | Analysis modes | 4 fixed templates | 4 modes + free-form chat |
 | Context depth | Metric values + grades | Full pipeline state + perturbation data |
@@ -972,7 +972,7 @@ google-generativeai # AI Oracle
 | LRU result cache | Disk-based | In-memory, thread-safe |
 | Dataset size blacklist | ✗ | ✓ |
 | Runtime tracker | ✗ | ✓ (EMA scheduling) |
-| Gemini AI | ✓ Flash Lite (template tab) | ✓ **2.0 Flash Lite (AI Oracle — dedicated page, multi-mode)** |
+| Gemini AI | ✓ Flash Lite (template tab) | ✓ **Flash Lite (AI Oracle — dedicated page, multi-mode)** |
 | Stability grades | A/B/C/D | S+/A/B/C/D |
 | Persistence analysis | ✗ | ✓ |
 | k-sweep trend analysis | Basic | ✓ (KSweepAnalyser) |

@@ -787,11 +787,7 @@ if page == "🏠 Home":
         st.plotly_chart(_build_ring_network(), use_container_width=True,
                         config={"displayModeBar": False})
 
-        # Hide the default slider to keep the UI clean
-        if "sliders" in fig_demo.layout:
-            fig_demo.layout.sliders[0].visible = False
 
-        st.plotly_chart(fig_demo, use_container_width=True, config={"displayModeBar": False})
 
     _sep()
 

@@ -698,9 +698,9 @@ if page == "🏠 Home":
         def _build_animated_patterns():
             pattern_keys = list(_b("get_pattern_names")().keys())
             frames = []
-            n_points = 4500  # Increased density for a serious, particle-system aesthetic
+            n_points = 3000  # Increased density for a serious, particle-system aesthetic
             for pk in pattern_keys:
-                df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=5, random_state=42)
+                df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=7, random_state=42)
                 
                 # Calculate angle for a cyclical, deep-analytical color gradient
                 x_col, y_col = df.columns[0], df.columns[1]
@@ -744,8 +744,8 @@ if page == "🏠 Home":
             paper_bgcolor="#07070f", plot_bgcolor="#07070f",
             showlegend=False, coloraxis_showscale=False,
             margin=dict(l=0, r=0, t=25, b=0), height=350,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-12, 12]), 
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-12, 12]),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-9, 9]), 
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-9, 9]),
             updatemenus=[dict(
                 type="buttons", showactive=False,
                 y=-0.05, x=0.5, xanchor="center", yanchor="top",
@@ -762,7 +762,7 @@ if page == "🏠 Home":
         )
         
         # Micro-markers: density remains high, but opacity allows overlapping glows
-        fig_demo.update_traces(marker=dict(size=3, opacity=0.85, line=dict(width=0)))
+        fig_demo.update_traces(marker=dict(size=2, opacity=0.85, line=dict(width=0)))
 
         # Hide the default slider to keep the UI strictly professional
         if "sliders" in fig_demo.layout:

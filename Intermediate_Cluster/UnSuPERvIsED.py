@@ -698,7 +698,7 @@ if page == "🏠 Home":
         def _build_animated_patterns():
             pattern_keys = list(_b("get_pattern_names")().keys())
             frames = []
-            n_points = 3000  # Increased density for a serious, particle-system aesthetic
+            n_points = 4000  # Increased density for a serious, particle-system aesthetic
             for pk in pattern_keys:
                 df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=6, random_state=42)
                 
@@ -717,10 +717,11 @@ if page == "🏠 Home":
         df_anim = _build_animated_patterns()
 
         # Build the animated scatter plot using a sleek, deep intelligence palette
-        fig_demo = px.scatter(
-            df_anim, x="x", y="y", animation_frame="Pattern", color="color_val",
-            color_continuous_scale=["#0a0a1e", "#110055", "#4400cc", "#9b59ff", "#00e5ff", "#4400cc", "#110055", "#0a0a1e"]
-        )
+        # Build the animated scatter plot
+            fig_demo = px.scatter(
+                df_anim, x="x", y="y", animation_frame="Pattern", color="color_val",
+                color_continuous_scale=["#00e5ff", "#00ff88", "#ffd700", "#ff4daa", "#9b59ff", "#330088", "#00e5ff"]
+            )
 
         # Apply dark neon layout and lock axes for smooth, deliberate morphing transitions
         # Build the animated scatter plot using a high-visibility futuristic palette
@@ -744,8 +745,8 @@ if page == "🏠 Home":
             paper_bgcolor="#07070f", plot_bgcolor="#07070f",
             showlegend=False, coloraxis_showscale=False,
             margin=dict(l=0, r=0, t=25, b=0), height=350,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-15, 15]), 
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-15, 15]),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10.5, 10.55]), 
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10.5, 10.5]),
             updatemenus=[dict(
                 type="buttons", showactive=False,
                 y=-0.05, x=0.5, xanchor="center", yanchor="top",
@@ -762,7 +763,7 @@ if page == "🏠 Home":
         )
         
         # Micro-markers: density remains high, but opacity allows overlapping glows
-        fig_demo.update_traces(marker=dict(size=2, opacity=0.85, line=dict(width=0)))
+        fig_demo.update_traces(marker=dict(size=1.5, opacity=0.85, line=dict(width=0)))
 
         # Hide the default slider to keep the UI strictly professional
         if "sliders" in fig_demo.layout:

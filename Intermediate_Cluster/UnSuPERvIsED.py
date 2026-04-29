@@ -143,7 +143,7 @@ def _load_backends():
             "get_pattern_names": get_pattern_names,
             "get_pattern_info": get_pattern_info,
             "generate_pattern_dataframe": generate_pattern_dataframe,
-            "PATTERN_CATALOG": PATTERN_CATALOG,f
+            "PATTERN_CATALOG": PATTERN_CATALOG,
         }
     except Exception as e:
         return {"ok": False, "error": str(e), "tb": traceback.format_exc()}

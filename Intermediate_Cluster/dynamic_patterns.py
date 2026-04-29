@@ -318,15 +318,6 @@ def generate_pattern(
 ) -> Tuple[np.ndarray, Dict]:
     """
     Generate a synthetic clustering pattern on-demand.
-    
-    Args:
-        pattern_id: Key from PATTERN_CATALOG
-        n_samples: Number of points to generate
-        n_clusters: Number of clusters (ignored for some patterns)
-        random_state: Random seed for reproducibility
-    
-    Returns:
-        (X, metadata) where X is (n_samples, 2) array, metadata is pattern info
     """
     if pattern_id not in PATTERN_CATALOG:
         raise ValueError(f"Unknown pattern: {pattern_id}")
@@ -334,16 +325,14 @@ def generate_pattern(
     pattern = PATTERN_CATALOG[pattern_id]
     generator = pattern["generator"]
     
-    # Call generator (some return just X, others (X, y) or [X, y])
+    # Call generator
     raw_output = generator(n_samples, n_clusters, random_state)
     
-    # Ultra-robust extraction: catch both (X, y) tuples AND [X, y] lists
-    if isinstance(raw_output, (tuple, list)) and len(raw_output) >= 2:
-        # If the first element is a numpy array, it is definitely the X matrix
-        if isinstance(raw_output[0], np.ndarray):
-            X = raw_output[0]
-        else:
-            X = raw_output
+    # Ultimate extraction: Safely grab X whether it's (X, y), [X, y], or just X
+    if isinstance(raw_output, tuple):
+        X = raw_output[0]
+    elif isinstance(raw_output, list) and len(raw_output) >= 2 and isinstance(raw_output[0], (np.ndarray, list)):
+        X = raw_output[0]
     else:
         X = raw_output
         

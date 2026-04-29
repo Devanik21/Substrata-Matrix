@@ -692,27 +692,59 @@ if page == "🏠 Home":
                 st.rerun()
 
     with col_anim:
-        # Animated cluster scatter
-        rng = np.random.default_rng(42)
-        n_demo = 300
-        centers = [(0,0),(3,3),(-3,3),(3,-3),(-3,-3)]
-        Xd = np.vstack([rng.normal(c, .8, (n_demo//5, 2)) for c in centers])
-        ld = np.repeat(range(5), n_demo//5)
-        colors = ["#00e5ff","#9b59ff","#ff4daa","#00ff88","#ffd700"]
-        fig_demo = go.Figure()
-        for i in range(5):
-            m = ld == i
-            fig_demo.add_trace(go.Scatter(
-                x=Xd[m,0], y=Xd[m,1], mode="markers", name=f"C{i}",
-                marker=dict(color=colors[i], size=5, opacity=.7),
-            ))
+        # Dynamic 21-Pattern Morphing Animation
+        @st.cache_data
+        def _build_animated_patterns():
+            pattern_keys = list(_b("get_pattern_names")().keys())
+            frames = []
+            n_points = 300
+            for pk in pattern_keys:
+                df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=5, random_state=42)
+                
+                # Calculate angle for a beautiful radial color gradient based on feature columns
+                x_col, y_col = df.columns[0], df.columns[1]
+                angle = np.arctan2(df[y_col], df[x_col])
+                
+                df_temp = pd.DataFrame({
+                    "x": df[x_col], "y": df[y_col],
+                    "color_val": angle,
+                    "Pattern": meta["pattern_name"]
+                })
+                frames.append(df_temp)
+            return pd.concat(frames, ignore_index=True)
+
+        df_anim = _build_animated_patterns()
+
+        # Build the animated scatter plot
+        fig_demo = px.scatter(
+            df_anim, x="x", y="y", animation_frame="Pattern", color="color_val",
+            color_continuous_scale=["#00e5ff", "#9b59ff", "#ff4daa", "#ffd700", "#00ff88", "#00e5ff"]
+        )
+
+        # Apply dark neon layout and lock axes for smooth morphing transitions
         fig_demo.update_layout(
             paper_bgcolor="#07070f", plot_bgcolor="#07070f",
-            showlegend=False, margin=dict(l=0,r=0,t=0,b=0), height=280,
-            xaxis=dict(showgrid=False,zeroline=False,showticklabels=False),
-            yaxis=dict(showgrid=False,zeroline=False,showticklabels=False),
+            showlegend=False, coloraxis_showscale=False,
+            margin=dict(l=0, r=0, t=25, b=0), height=300,
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10, 10]), 
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10, 10]),
+            updatemenus=[dict(
+                type="buttons", showactive=False,
+                y=-0.05, x=0.5, xanchor="center", yanchor="top",
+                buttons=[dict(
+                    label="▶ Morph 21 Patterns",
+                    method="animate",
+                    args=[None, dict(frame=dict(duration=800, redraw=True), fromcurrent=True, transition=dict(duration=800, easing="cubic-in-out"))]
+                )]
+            )]
         )
-        st.plotly_chart(fig_demo, use_container_width=True, config={"displayModeBar":False})
+        fig_demo.update_traces(marker=dict(size=6, opacity=0.85, line=dict(width=0)))
+
+        # Hide the default slider to keep the UI clean
+        if "sliders" in fig_demo.layout:
+            fig_demo.layout.sliders[0].visible = False
+
+        st.plotly_chart(fig_demo, use_container_width=True, config={"displayModeBar": False})
 
     _sep()
 

@@ -32,9 +32,9 @@ PATTERN_CATALOG = {
     "blobs_anisotropic": {
         "name": "🔀 Anisotropic Blobs",
         "desc": "Elongated Gaussian clusters",
-        "generator": lambda n, k, rs: make_blobs(
-            n_samples=n, centers=k, random_state=rs,
-            cluster_std=[0.3, 1.2], return_centers=False
+        "generator": lambda n, k, rs: np.dot(
+            make_blobs(n_samples=n, centers=k, random_state=rs, cluster_std=0.5)[0],
+            [[0.6, -0.6], [-0.4, 0.8]]
         ),
         "best_for": "Spectral, DBSCAN"
     },

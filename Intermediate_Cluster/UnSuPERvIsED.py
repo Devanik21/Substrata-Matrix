@@ -698,9 +698,9 @@ if page == "🏠 Home":
         def _build_animated_patterns():
             pattern_keys = list(_b("get_pattern_names")().keys())
             frames = []
-            n_points = 4000  # Increased density for a serious, particle-system aesthetic
+            n_points = 5000  # Increased density for a serious, particle-system aesthetic
             for pk in pattern_keys:
-                df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=6, random_state=42)
+                df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=7, random_state=42)
                 
                 # Calculate angle for a cyclical, deep-analytical color gradient
                 x_col, y_col = df.columns[0], df.columns[1]
@@ -746,8 +746,8 @@ if page == "🏠 Home":
             paper_bgcolor="#07070f", plot_bgcolor="#07070f",
             showlegend=False, coloraxis_showscale=False,
             margin=dict(l=0, r=0, t=25, b=0), height=350,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10.5, 10.55]), 
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10.5, 10.5]),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10, 10.5]), 
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10.5, 10]),
             updatemenus=[dict(
                 type="buttons", showactive=False,
                 y=-0.05, x=0.5, xanchor="center", yanchor="top",

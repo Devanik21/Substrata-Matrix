@@ -694,21 +694,25 @@ if page == "🏠 Home":
     with col_anim:
         # Dynamic 21-Pattern Morphing Animation
         # Dynamic 21-Pattern Morphing Animation
+        # Dynamic 21-Pattern Morphing Animation (HRF Resonance Edition)
         @st.cache_data
         def _build_animated_patterns():
             pattern_keys = list(_b("get_pattern_names")().keys())
             frames = []
-            n_points = 4000  # Increased density for a serious, particle-system aesthetic
+            n_points = 3500  # Balanced density for clear wave propagation
             for pk in pattern_keys:
                 df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=6, random_state=42)
                 
-                # Calculate angle for a cyclical, deep-analytical color gradient
                 x_col, y_col = df.columns[0], df.columns[1]
-                angle = np.arctan2(df[y_col], df[x_col])
+                
+                # ── HARMONIC RESONANCE COLOR MAPPING ──
+                # Creates physics-inspired interference ripples instead of a simple rainbow
+                r = np.sqrt(df[x_col]**2 + df[y_col]**2)
+                resonance = np.sin(r * 1.5) 
                 
                 df_temp = pd.DataFrame({
                     "x": df[x_col], "y": df[y_col],
-                    "color_val": angle,
+                    "color_val": resonance,
                     "Pattern": meta["pattern_name"]
                 })
                 frames.append(df_temp)
@@ -716,55 +720,36 @@ if page == "🏠 Home":
 
         df_anim = _build_animated_patterns()
 
-        # Build the animated scatter plot using a sleek, deep intelligence palette
+        # Build the animated scatter plot using a Thermal Hologram palette
         fig_demo = px.scatter(
             df_anim, x="x", y="y", animation_frame="Pattern", color="color_val",
-            color_continuous_scale=["#00e5ff", "#00ff88", "#ffd700", "#ff4daa", "#9b59ff", "#330088", "#00e5ff"]
-                
-                
-            )
-
-        # Apply dark neon layout and lock axes for smooth, deliberate morphing transitions
-        # Build the animated scatter plot using a high-visibility futuristic palette
-        fig_demo = px.scatter(
-            df_anim, x="x", y="y", animation_frame="Pattern", color="color_val",
-            color_continuous_scale=[
-                "#330088",  # Deep radiant indigo (visible against #07070f)
-                "#7700cc",  # Electric violet
-                "#9b59ff",  # Core purple
-                "#ff4daa",  # Plasma pink
-                "#00e5ff",  # Piercing cyan
-                "#00ffcc",  # Radioactive mint
-                "#00e5ff",  # Mirroring back down for a seamless cyclical glow
-                "#9b59ff", 
-                "#330088"
-            ]
+            color_continuous_scale=["#050515", "#1100aa", "#cc00ff", "#ff3355", "#ffdd00", "#ffffff"]
         )
 
-        # Apply dark neon layout and lock axes for smooth, deliberate morphing transitions
+        # Apply dark neon layout with perfect [-11, 11] bounding
         fig_demo.update_layout(
             paper_bgcolor="#07070f", plot_bgcolor="#07070f",
             showlegend=False, coloraxis_showscale=False,
-            margin=dict(l=0, r=0, t=25, b=0), height=350,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10.5, 10.55]), 
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10.5, 10.5]),
+            margin=dict(l=0, r=0, t=25, b=0), height=380,
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-11, 11]), 
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-11, 11]),
             updatemenus=[dict(
                 type="buttons", showactive=False,
                 y=-0.05, x=0.5, xanchor="center", yanchor="top",
                 buttons=[dict(
-                    label="▶ Initiate Evolution",
+                    label="▶ Pulse Resonance",
                     method="animate",
                     args=[None, dict(
-                        frame=dict(duration=2500, redraw=True), 
+                        frame=dict(duration=2200, redraw=True), 
                         fromcurrent=True, 
-                        transition=dict(duration=2500, easing="cubic-in-out")
+                        transition=dict(duration=2200, easing="quad-in-out")
                     )]
                 )]
             )]
         )
         
-        # Micro-markers: density remains high, but opacity allows overlapping glows
-        fig_demo.update_traces(marker=dict(size=1.5, opacity=0.85, line=dict(width=0)))
+        # Energy nodes: medium size, high opacity for a crisp holographic look
+        fig_demo.update_traces(marker=dict(size=3.5, opacity=0.9, line=dict(width=0)))
 
         # Hide the default slider to keep the UI strictly professional
         if "sliders" in fig_demo.layout:

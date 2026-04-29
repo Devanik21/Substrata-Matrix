@@ -214,7 +214,7 @@ def _hierarchical_blobs(n: int, k: int, rs: int) -> np.ndarray:
         # Sub-clusters within each super-cluster
         X_sub, _ = make_blobs(
             n_samples=per_super, centers=2, cluster_std=0.3,
-            center_box=np.column_stack([center-1.5, center+1.5]), 
+            center_box=(float(center.min()) - 1.5, float(center.max()) + 1.5),
             random_state=rs_gen.randint(0, 10000)
         )
         X_list.append(X_sub)

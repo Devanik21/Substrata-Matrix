@@ -334,17 +334,21 @@ def generate_pattern(
     pattern = PATTERN_CATALOG[pattern_id]
     generator = pattern["generator"]
     
-    # Call generator (some return just X, others return (X, y))
+    # Call generator (some return just X, others (X, y) or [X, y])
     raw_output = generator(n_samples, n_clusters, random_state)
     
-    # Extract X if the generator returned a tuple
-    if isinstance(raw_output, tuple):
-        X = raw_output[0]
+    # Ultra-robust extraction: catch both (X, y) tuples AND [X, y] lists
+    if isinstance(raw_output, (tuple, list)) and len(raw_output) >= 2:
+        # If the first element is a numpy array, it is definitely the X matrix
+        if isinstance(raw_output[0], np.ndarray):
+            X = raw_output[0]
+        else:
+            X = raw_output
     else:
         X = raw_output
-    
-    # Ensure output shape
-    X = np.array(X).reshape(-1, 2)
+        
+    # Ensure output shape safely
+    X = np.array(X, dtype=float).reshape(-1, 2)
     
     # Return with metadata
     return X, {
@@ -355,6 +359,7 @@ def generate_pattern(
         "n_samples": X.shape[0],
         "n_features": 2,
     }
+    
 
 def generate_pattern_dataframe(
     pattern_id: str,

@@ -698,7 +698,7 @@ if page == "🏠 Home":
         def _build_animated_patterns():
             pattern_keys = list(_b("get_pattern_names")().keys())
             frames = []
-            n_points = 1500  # Increased density for a serious, particle-system aesthetic
+            n_points = 4500  # Increased density for a serious, particle-system aesthetic
             for pk in pattern_keys:
                 df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=5, random_state=42)
                 

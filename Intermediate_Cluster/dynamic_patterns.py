@@ -42,11 +42,13 @@ PATTERN_CATALOG = {
         "name": "📊 Varied-Size Blobs",
         "desc": "Different Gaussian variances per cluster",
         "generator": lambda n, k, rs: make_blobs(
-            n_samples=n, centers=k, random_state=rs,
-            cluster_std=np.linspace(0.2, 1.5, k), 
-            return_centers=False
-        ),
-        "best_for": "HDBSCAN, GMM"
+            n_samples=n, 
+            centers=k, 
+            random_state=rs, 
+            # Dynamically generate 'k' different standard deviations
+            cluster_std=np.random.RandomState(rs).uniform(0.3, 1.5, size=k)
+        )[0],
+        "best_for": "GMM, DBSCAN"
     },
     
     # GEOMETRIC SHAPES

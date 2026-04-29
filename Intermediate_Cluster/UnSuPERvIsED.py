@@ -81,6 +81,12 @@ def _load_backends():
             VisualisationEngine, Theme, get_vis_engine,
             available_embedding_methods, empty_figure, label_colormap,
         )
+        from dynamic_patterns import (
+            get_pattern_names, 
+            get_pattern_info,
+            generate_pattern_dataframe,
+            PATTERN_CATALOG
+        )
         return {
             "ok": True,
             "PreprocessingConfig": PreprocessingConfig,
@@ -134,6 +140,10 @@ def _load_backends():
             "get_vis_engine": get_vis_engine,
             "available_embedding_methods": available_embedding_methods,
             "empty_figure": empty_figure,
+            "get_pattern_names": get_pattern_names,
+            "get_pattern_info": get_pattern_info,
+            "generate_pattern_dataframe": generate_pattern_dataframe,
+            "PATTERN_CATALOG": PATTERN_CATALOG,f
         }
     except Exception as e:
         return {"ok": False, "error": str(e), "tb": traceback.format_exc()}
@@ -810,6 +820,125 @@ elif page == "📁 Data Ingestion":
                             _warn(msg)
                 except Exception as e:
                     st.error(f"Load failed: {e}")
+            # ─────────────────────────────────────────────────────────────────
+    # OPTION 3: SYNTHETIC PATTERN GENERATOR (NEW)
+    # ─────────────────────────────────────────────────────────────────
+    
+    _sep()
+    _section("🎯 Generate Synthetic Pattern")
+    
+    col_pat1, col_pat2, col_pat3 = st.columns([2, 1, 1])
+    
+    with col_pat1:
+        pattern_names = _b("get_pattern_names")()
+        pattern_id = st.selectbox(
+            "Clustering Pattern",
+            options=list(pattern_names.keys()),
+            format_func=lambda x: pattern_names[x],
+            key="pattern_select",
+            help="Choose from 21 dynamic clustering patterns"
+        )
+        
+        # Show pattern details
+        if pattern_id:
+            pattern_info = _b("get_pattern_info")(pattern_id)
+            st.caption(f"✨ {pattern_info['description']}")
+            st.caption(f"🎯 Best for: {pattern_info['best_for']}")
+    
+    with col_pat2:
+        n_samples = st.number_input(
+            "Sample Count", 
+            min_value=50, max_value=5000, 
+            value=300, step=50,
+            key="pat_samples"
+        )
+    
+    with col_pat3:
+        n_clusters = st.number_input(
+            "Cluster Count", 
+            min_value=2, max_value=10, 
+            value=5, step=1,
+            key="pat_clusters"
+        )
+    
+    if st.button("🎲 Generate Pattern", use_container_width=True, 
+                 type="primary", key="gen_pattern_btn"):
+        with st.spinner("🔄 Generating pattern..."):
+            try:
+                df, metadata = _b("generate_pattern_dataframe")(
+                    pattern_id, 
+                    n_samples=int(n_samples),
+                    n_clusters=int(n_clusters),
+                    random_state=42
+                )
+                st.session_state.df_raw = df
+                st.session_state.source_file = f"Generated: {metadata['pattern_name']}"
+                st.session_state.df_profile = None
+                
+                _success(f"✅ Generated {metadata['n_samples']} samples "
+                        f"from **{metadata['pattern_name']}**")
+                
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+    
+    # Show pattern preview
+    _sep()
+    if st.session_state.df_raw is not None:
+        if len(st.session_state.df_raw.columns) >= 2:
+            _subsection("📊 Pattern Preview")
+            
+            col_vis1, col_vis2 = st.columns([3, 1])
+            
+            with col_vis1:
+                import plotly.express as px
+                
+                fig = px.scatter(
+                    st.session_state.df_raw,
+                    x=st.session_state.df_raw.columns[0],
+                    y=st.session_state.df_raw.columns[1],
+                    title="Live Pattern Visualization",
+                    opacity=0.65
+                )
+                T = _b("Theme")
+                fig.update_layout(
+                    height=350,
+                    paper_bgcolor=T.BG_DARK if T else "#07070f",
+                    plot_bgcolor=T.BG_CARD if T else "#0d0d1e",
+                    font=dict(color=T.TEXT_PRIMARY if T else "#e0e0f0"),
+                    margin=dict(l=50, r=20, t=40, b=40),
+                    showlegend=False,
+                    hovermode="closest"
+                )
+                fig.update_traces(
+                    marker=dict(
+                        color="#00e5ff", 
+                        size=6, 
+                        line=dict(width=0),
+                        opacity=0.6
+                    )
+                )
+                st.plotly_chart(fig, use_container_width=True, 
+                               config={"displayModeBar": False})
+            
+            with col_vis2:
+                _metric_card(
+                    str(len(st.session_state.df_raw)), 
+                    "Total Samples", 
+                    color="#00e5ff"
+                )
+                _metric_card(
+                    str(len(st.session_state.df_raw.columns)), 
+                    "Features", 
+                    color="#9b59ff"
+                )
+                st.divider()
+                if st.button("📋 Show Data", use_container_width=True, key="show_synth"):
+                    st.dataframe(
+                        st.session_state.df_raw.head(10), 
+                        use_container_width=True
+                    )
+    
+
 
         if st.session_state.df_raw is not None:
             df = st.session_state.df_raw

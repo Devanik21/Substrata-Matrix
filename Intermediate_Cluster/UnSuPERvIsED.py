@@ -692,53 +692,100 @@ if page == "🏠 Home":
                 st.rerun()
 
     with col_anim:
-        # Dynamic 21-Pattern Morphing Animation
+        # ── Radial Network Ring ─────────────────────────────────────────
         @st.cache_data
-        def _build_animated_patterns():
-            pattern_keys = list(_b("get_pattern_names")().keys())
-            frames = []
-            n_points = 300
-            for pk in pattern_keys:
-                df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=5, random_state=42)
-                
-                # Calculate angle for a beautiful radial color gradient based on feature columns
-                x_col, y_col = df.columns[0], df.columns[1]
-                angle = np.arctan2(df[y_col], df[x_col])
-                
-                df_temp = pd.DataFrame({
-                    "x": df[x_col], "y": df[y_col],
-                    "color_val": angle,
-                    "Pattern": meta["pattern_name"]
-                })
-                frames.append(df_temp)
-            return pd.concat(frames, ignore_index=True)
+        def _build_ring_network() -> go.Figure:
+            rng      = np.random.RandomState(42)
+            N_HUBS   = 13
+            HUB_R    = 4.8
 
-        df_anim = _build_animated_patterns()
+            # Hub positions on a perfect ring
+            angles  = np.linspace(0, 2 * np.pi, N_HUBS, endpoint=False)
+            hub_x   = HUB_R * np.cos(angles)
+            hub_y   = HUB_R * np.sin(angles)
 
-        # Build the animated scatter plot
-        fig_demo = px.scatter(
-            df_anim, x="x", y="y", animation_frame="Pattern", color="color_val",
-            color_continuous_scale=["#00e5ff", "#9b59ff", "#ff4daa", "#ffd700", "#00ff88", "#00e5ff"]
-        )
+            # Per-hub HSL rainbow palette
+            hues        = [int(360 * i / N_HUBS) for i in range(N_HUBS)]
+            c_bright    = [f"hsl({h},96%,66%)"          for h in hues]
+            c_node      = [f"hsla({h},95%,68%,0.82)"    for h in hues]
+            c_edge      = [f"hsla({h},92%,60%,0.20)"    for h in hues]
+            c_glow      = [f"hsla({h},90%,72%,0.055)"   for h in hues]
 
-        # Apply dark neon layout and lock axes for smooth morphing transitions
-        fig_demo.update_layout(
-            paper_bgcolor="#07070f", plot_bgcolor="#07070f",
-            showlegend=False, coloraxis_showscale=False,
-            margin=dict(l=0, r=0, t=25, b=0), height=300,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10, 10]), 
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10, 10]),
-            updatemenus=[dict(
-                type="buttons", showactive=False,
-                y=-0.05, x=0.5, xanchor="center", yanchor="top",
-                buttons=[dict(
-                    label="▶ Morph 21 Patterns",
-                    method="animate",
-                    args=[None, dict(frame=dict(duration=800, redraw=True), fromcurrent=True, transition=dict(duration=800, easing="cubic-in-out"))]
-                )]
-            )]
-        )
-        fig_demo.update_traces(marker=dict(size=6, opacity=0.85, line=dict(width=0)))
+            # Sub-nodes elongated ALONG the ring tangent (matches image aesthetic)
+            N_SUB   = 48
+            sub     = {i: [] for i in range(N_HUBS)}
+            for i in range(N_HUBS):
+                tan = np.array([-np.sin(angles[i]),  np.cos(angles[i])])   # tangent
+                rad = np.array([ np.cos(angles[i]),  np.sin(angles[i])])   # radial
+                ts  = rng.normal(0, 1.15, N_SUB)
+                rs  = rng.normal(0, 0.48, N_SUB)
+                xs  = hub_x[i] + tan[0]*ts + rad[0]*rs
+                ys  = hub_y[i] + tan[1]*ts + rad[1]*rs
+                sub[i] = list(zip(xs.tolist(), ys.tolist()))
+
+            # Quadratic Bezier pulled toward canvas center (creates arcs)
+            def _bez(x0, y0, x1, y1, pull=0.30, n=15):
+                cx = (x0 + x1) / 2 * pull
+                cy = (y0 + y1) / 2 * pull
+                t  = np.linspace(0, 1, n)
+                return ((1-t)**2*x0 + 2*(1-t)*t*cx + t**2*x1,
+                        (1-t)**2*y0 + 2*(1-t)*t*cy + t**2*y1)
+
+            fig = go.Figure()
+
+            # ── Edge passes: glow then sharp ──────────────────────────
+            edge_budget = [(1, 58), (2, 36), (3, 22), (4, 12), (5, 7)]
+            for pass_ in (0, 1):                          # 0=glow  1=sharp
+                for i in range(N_HUBS):
+                    ex, ey = [], []
+                    for offset, n_e in edge_budget:
+                        j      = (i + offset) % N_HUBS
+                        pi_lst = sub[i];  pj_lst = sub[j]
+                        for _ in range(n_e):
+                            x0, y0 = pi_lst[rng.randint(len(pi_lst))]
+                            x1, y1 = pj_lst[rng.randint(len(pj_lst))]
+                            bx, by = _bez(x0, y0, x1, y1)
+                            ex.extend(bx.tolist() + [None])
+                            ey.extend(by.tolist() + [None])
+                    w  = 4.5  if pass_ == 0 else 0.75
+                    cl = c_glow[i] if pass_ == 0 else c_edge[i]
+                    fig.add_trace(go.Scatter(
+                        x=ex, y=ey, mode="lines",
+                        line=dict(width=w, color=cl),
+                        hoverinfo="none", showlegend=False))
+
+            # ── Sub-nodes ─────────────────────────────────────────────
+            for i in range(N_HUBS):
+                xs = [p[0] for p in sub[i]]
+                ys = [p[1] for p in sub[i]]
+                fig.add_trace(go.Scatter(
+                    x=xs, y=ys, mode="markers",
+                    marker=dict(size=3.8, color=c_node[i], opacity=0.85),
+                    hoverinfo="none", showlegend=False))
+
+            # ── Hub nodes with value labels ───────────────────────────
+            vals = [f"{rng.uniform(100, 999):.2f}" for _ in range(N_HUBS)]
+            fig.add_trace(go.Scatter(
+                x=hub_x.tolist(), y=hub_y.tolist(),
+                mode="markers+text",
+                marker=dict(size=12, color=c_bright, opacity=1.0,
+                            line=dict(width=1.8, color="rgba(255,255,255,0.85)")),
+                text=vals, textposition="top center",
+                textfont=dict(size=8, color="rgba(255,255,255,0.92)",
+                              family="monospace"),
+                hoverinfo="none", showlegend=False))
+
+            fig.update_layout(
+                paper_bgcolor="#07070f", plot_bgcolor="#07070f",
+                margin=dict(l=0, r=0, t=8, b=0), height=308,
+                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False,
+                           range=[-7.8, 7.8]),
+                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False,
+                           range=[-7.8, 7.8], scaleanchor="x"))   # keeps circle round
+            return fig
+
+        st.plotly_chart(_build_ring_network(), use_container_width=True,
+                        config={"displayModeBar": False})
 
         # Hide the default slider to keep the UI clean
         if "sliders" in fig_demo.layout:

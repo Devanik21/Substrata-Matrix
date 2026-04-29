@@ -717,10 +717,11 @@ if page == "🏠 Home":
         df_anim = _build_animated_patterns()
 
         # Build the animated scatter plot using a sleek, deep intelligence palette
-        # Build the animated scatter plot
-            fig_demo = px.scatter(
-                df_anim, x="x", y="y", animation_frame="Pattern", color="color_val",
-                color_continuous_scale=["#00e5ff", "#00ff88", "#ffd700", "#ff4daa", "#9b59ff", "#330088", "#00e5ff"]
+        fig_demo = px.scatter(
+            df_anim, x="x", y="y", animation_frame="Pattern", color="color_val",
+            color_continuous_scale=["#00e5ff", "#00ff88", "#ffd700", "#ff4daa", "#9b59ff", "#330088", "#00e5ff"]
+                
+                
             )
 
         # Apply dark neon layout and lock axes for smooth, deliberate morphing transitions

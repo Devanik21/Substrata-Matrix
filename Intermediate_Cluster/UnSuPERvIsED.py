@@ -746,8 +746,8 @@ if page == "🏠 Home":
             paper_bgcolor="#07070f", plot_bgcolor="#07070f",
             showlegend=False, coloraxis_showscale=False,
             margin=dict(l=0, r=0, t=25, b=0), height=350,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-7, 10.5]), 
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10.5, 7]),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-8, 9]), 
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-9, 8]),
             updatemenus=[dict(
                 type="buttons", showactive=False,
                 y=-0.05, x=0.5, xanchor="center", yanchor="top",

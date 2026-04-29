@@ -1,14 +1,14 @@
-"""
+""" 
 UnSuPERvIsED.py — Substrata-Matrix Interactive Clustering Workbench
 
 Streamlit-based interface orchestrating the complete clustering pipeline:
-data ingestion, preprocessing, algorithm selection, parallel execution,
+data ingestion, preprocessing, algorithm selection, parallel execution, 
 evaluation, visualization, stability analysis, consensus clustering,
-and interpretability.
-"""
+and interpretability.    
+"""  
 
 # ─────────────────────────────────────────────────────────────────
-# IMPORTS & PATH SETUP
+# IMPORTS & PATH SETUP  
 # ─────────────────────────────────────────────────────────────────
 
 import sys, os, io, time, json, warnings, hashlib, traceback
@@ -81,6 +81,12 @@ def _load_backends():
             VisualisationEngine, Theme, get_vis_engine,
             available_embedding_methods, empty_figure, label_colormap,
         )
+        from dynamic_patterns import (
+            get_pattern_names, 
+            get_pattern_info,
+            generate_pattern_dataframe,
+            PATTERN_CATALOG
+        )
         return {
             "ok": True,
             "PreprocessingConfig": PreprocessingConfig,
@@ -134,6 +140,10 @@ def _load_backends():
             "get_vis_engine": get_vis_engine,
             "available_embedding_methods": available_embedding_methods,
             "empty_figure": empty_figure,
+            "get_pattern_names": get_pattern_names,
+            "get_pattern_info": get_pattern_info,
+            "generate_pattern_dataframe": generate_pattern_dataframe,
+            "PATTERN_CATALOG": PATTERN_CATALOG,
         }
     except Exception as e:
         return {"ok": False, "error": str(e), "tb": traceback.format_exc()}
@@ -682,27 +692,102 @@ if page == "🏠 Home":
                 st.rerun()
 
     with col_anim:
-        # Animated cluster scatter
-        rng = np.random.default_rng(42)
-        n_demo = 300
-        centers = [(0,0),(3,3),(-3,3),(3,-3),(-3,-3)]
-        Xd = np.vstack([rng.normal(c, .8, (n_demo//5, 2)) for c in centers])
-        ld = np.repeat(range(5), n_demo//5)
-        colors = ["#00e5ff","#9b59ff","#ff4daa","#00ff88","#ffd700"]
-        fig_demo = go.Figure()
-        for i in range(5):
-            m = ld == i
-            fig_demo.add_trace(go.Scatter(
-                x=Xd[m,0], y=Xd[m,1], mode="markers", name=f"C{i}",
-                marker=dict(color=colors[i], size=5, opacity=.7),
-            ))
-        fig_demo.update_layout(
-            paper_bgcolor="#07070f", plot_bgcolor="#07070f",
-            showlegend=False, margin=dict(l=0,r=0,t=0,b=0), height=280,
-            xaxis=dict(showgrid=False,zeroline=False,showticklabels=False),
-            yaxis=dict(showgrid=False,zeroline=False,showticklabels=False),
-        )
-        st.plotly_chart(fig_demo, use_container_width=True, config={"displayModeBar":False})
+        # ── Radial Network Ring ─────────────────────────────────────────
+        @st.cache_data
+        def _build_ring_network() -> go.Figure:
+            rng      = np.random.RandomState(42)
+            N_HUBS   = 13
+            HUB_R    = 4.8
+
+            # Hub positions on a perfect ring
+            angles  = np.linspace(0, 2 * np.pi, N_HUBS, endpoint=False)
+            hub_x   = HUB_R * np.cos(angles)
+            hub_y   = HUB_R * np.sin(angles)
+
+            # Per-hub HSL rainbow palette
+            hues        = [int(360 * i / N_HUBS) for i in range(N_HUBS)]
+            c_bright    = [f"hsl({h},96%,66%)"          for h in hues]
+            c_node      = [f"hsla({h},95%,68%,0.82)"    for h in hues]
+            c_edge      = [f"hsla({h},92%,60%,0.20)"    for h in hues]
+            c_glow      = [f"hsla({h},90%,72%,0.055)"   for h in hues]
+
+            # Sub-nodes elongated ALONG the ring tangent (matches image aesthetic)
+            N_SUB   = 48
+            sub     = {i: [] for i in range(N_HUBS)}
+            for i in range(N_HUBS):
+                tan = np.array([-np.sin(angles[i]),  np.cos(angles[i])])   # tangent
+                rad = np.array([ np.cos(angles[i]),  np.sin(angles[i])])   # radial
+                ts  = rng.normal(0, 1.15, N_SUB)
+                rs  = rng.normal(0, 0.48, N_SUB)
+                xs  = hub_x[i] + tan[0]*ts + rad[0]*rs
+                ys  = hub_y[i] + tan[1]*ts + rad[1]*rs
+                sub[i] = list(zip(xs.tolist(), ys.tolist()))
+
+            # Quadratic Bezier pulled toward canvas center (creates arcs)
+            def _bez(x0, y0, x1, y1, pull=0.30, n=15):
+                cx = (x0 + x1) / 2 * pull
+                cy = (y0 + y1) / 2 * pull
+                t  = np.linspace(0, 1, n)
+                return ((1-t)**2*x0 + 2*(1-t)*t*cx + t**2*x1,
+                        (1-t)**2*y0 + 2*(1-t)*t*cy + t**2*y1)
+
+            fig = go.Figure()
+
+            # ── Edge passes: glow then sharp ──────────────────────────
+            edge_budget = [(1, 58), (2, 36), (3, 22), (4, 12), (5, 7)]
+            for pass_ in (0, 1):                          # 0=glow  1=sharp
+                for i in range(N_HUBS):
+                    ex, ey = [], []
+                    for offset, n_e in edge_budget:
+                        j      = (i + offset) % N_HUBS
+                        pi_lst = sub[i];  pj_lst = sub[j]
+                        for _ in range(n_e):
+                            x0, y0 = pi_lst[rng.randint(len(pi_lst))]
+                            x1, y1 = pj_lst[rng.randint(len(pj_lst))]
+                            bx, by = _bez(x0, y0, x1, y1)
+                            ex.extend(bx.tolist() + [None])
+                            ey.extend(by.tolist() + [None])
+                    w  = 4.5  if pass_ == 0 else 0.75
+                    cl = c_glow[i] if pass_ == 0 else c_edge[i]
+                    fig.add_trace(go.Scatter(
+                        x=ex, y=ey, mode="lines",
+                        line=dict(width=w, color=cl),
+                        hoverinfo="none", showlegend=False))
+
+            # ── Sub-nodes ─────────────────────────────────────────────
+            for i in range(N_HUBS):
+                xs = [p[0] for p in sub[i]]
+                ys = [p[1] for p in sub[i]]
+                fig.add_trace(go.Scatter(
+                    x=xs, y=ys, mode="markers",
+                    marker=dict(size=3.8, color=c_node[i], opacity=0.85),
+                    hoverinfo="none", showlegend=False))
+
+            # ── Hub nodes with value labels ───────────────────────────
+            vals = [f"{rng.uniform(100, 999):.2f}" for _ in range(N_HUBS)]
+            fig.add_trace(go.Scatter(
+                x=hub_x.tolist(), y=hub_y.tolist(),
+                mode="markers+text",
+                marker=dict(size=12, color=c_bright, opacity=1.0,
+                            line=dict(width=1.8, color="rgba(255,255,255,0.85)")),
+                text=vals, textposition="top center",
+                textfont=dict(size=8, color="rgba(255,255,255,0.92)",
+                              family="monospace"),
+                hoverinfo="none", showlegend=False))
+
+            fig.update_layout(
+                paper_bgcolor="#07070f", plot_bgcolor="#07070f",
+                margin=dict(l=0, r=0, t=8, b=0), height=308,
+                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False,
+                           range=[-7.8, 7.8]),
+                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False,
+                           range=[-7.8, 7.8], scaleanchor="x"))   # keeps circle round
+            return fig
+
+        st.plotly_chart(_build_ring_network(), use_container_width=True,
+                        config={"displayModeBar": False})
+
+
 
     _sep()
 
@@ -810,6 +895,125 @@ elif page == "📁 Data Ingestion":
                             _warn(msg)
                 except Exception as e:
                     st.error(f"Load failed: {e}")
+            # ─────────────────────────────────────────────────────────────────
+    # OPTION 3: SYNTHETIC PATTERN GENERATOR (NEW)
+    # ─────────────────────────────────────────────────────────────────
+    
+    _sep()
+    _section("🎯 Generate Synthetic Pattern")
+    
+    col_pat1, col_pat2, col_pat3 = st.columns([2, 1, 1])
+    
+    with col_pat1:
+        pattern_names = _b("get_pattern_names")()
+        pattern_id = st.selectbox(
+            "Clustering Pattern",
+            options=list(pattern_names.keys()),
+            format_func=lambda x: pattern_names[x],
+            key="pattern_select",
+            help="Choose from 21 dynamic clustering patterns"
+        )
+        
+        # Show pattern details
+        if pattern_id:
+            pattern_info = _b("get_pattern_info")(pattern_id)
+            st.caption(f"✨ {pattern_info['description']}")
+            st.caption(f"🎯 Best for: {pattern_info['best_for']}")
+    
+    with col_pat2:
+        n_samples = st.number_input(
+            "Sample Count", 
+            min_value=50, max_value=5000, 
+            value=300, step=50,
+            key="pat_samples"
+        )
+    
+    with col_pat3:
+        n_clusters = st.number_input(
+            "Cluster Count", 
+            min_value=2, max_value=10, 
+            value=5, step=1,
+            key="pat_clusters"
+        )
+    
+    if st.button("🎲 Generate Pattern", use_container_width=True, 
+                 type="primary", key="gen_pattern_btn"):
+        with st.spinner("🔄 Generating pattern..."):
+            try:
+                df, metadata = _b("generate_pattern_dataframe")(
+                    pattern_id, 
+                    n_samples=int(n_samples),
+                    n_clusters=int(n_clusters),
+                    random_state=42
+                )
+                st.session_state.df_raw = df
+                st.session_state.source_file = f"Generated: {metadata['pattern_name']}"
+                st.session_state.df_profile = None
+                
+                _success(f"✅ Generated {metadata['n_samples']} samples "
+                        f"from **{metadata['pattern_name']}**")
+                
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+    
+    # Show pattern preview
+    _sep()
+    if st.session_state.df_raw is not None:
+        if len(st.session_state.df_raw.columns) >= 2:
+            _subsection("📊 Pattern Preview")
+            
+            col_vis1, col_vis2 = st.columns([3, 1])
+            
+            with col_vis1:
+                import plotly.express as px
+                
+                fig = px.scatter(
+                    st.session_state.df_raw,
+                    x=st.session_state.df_raw.columns[0],
+                    y=st.session_state.df_raw.columns[1],
+                    title="Live Pattern Visualization",
+                    opacity=0.65
+                )
+                T = _b("Theme")
+                fig.update_layout(
+                    height=350,
+                    paper_bgcolor=T.BG_DARK if T else "#07070f",
+                    plot_bgcolor=T.BG_CARD if T else "#0d0d1e",
+                    font=dict(color=T.TEXT_PRIMARY if T else "#e0e0f0"),
+                    margin=dict(l=50, r=20, t=40, b=40),
+                    showlegend=False,
+                    hovermode="closest"
+                )
+                fig.update_traces(
+                    marker=dict(
+                        color="#00e5ff", 
+                        size=6, 
+                        line=dict(width=0),
+                        opacity=0.6
+                    )
+                )
+                st.plotly_chart(fig, use_container_width=True, 
+                               config={"displayModeBar": False})
+            
+            with col_vis2:
+                _metric_card(
+                    str(len(st.session_state.df_raw)), 
+                    "Total Samples", 
+                    color="#00e5ff"
+                )
+                _metric_card(
+                    str(len(st.session_state.df_raw.columns)), 
+                    "Features", 
+                    color="#9b59ff"
+                )
+                st.divider()
+                if st.button("📋 Show Data", use_container_width=True, key="show_synth"):
+                    st.dataframe(
+                        st.session_state.df_raw.head(10), 
+                        use_container_width=True
+                    )
+    
+
 
         if st.session_state.df_raw is not None:
             df = st.session_state.df_raw

@@ -693,15 +693,16 @@ if page == "🏠 Home":
 
     with col_anim:
         # Dynamic 21-Pattern Morphing Animation
+        # Dynamic 21-Pattern Morphing Animation
         @st.cache_data
         def _build_animated_patterns():
             pattern_keys = list(_b("get_pattern_names")().keys())
             frames = []
-            n_points = 300
+            n_points = 1500  # Increased density for a serious, particle-system aesthetic
             for pk in pattern_keys:
                 df, meta = _b("generate_pattern_dataframe")(pk, n_samples=n_points, n_clusters=5, random_state=42)
                 
-                # Calculate angle for a beautiful radial color gradient based on feature columns
+                # Calculate angle for a cyclical, deep-analytical color gradient
                 x_col, y_col = df.columns[0], df.columns[1]
                 angle = np.arctan2(df[y_col], df[x_col])
                 
@@ -715,32 +716,38 @@ if page == "🏠 Home":
 
         df_anim = _build_animated_patterns()
 
-        # Build the animated scatter plot
+        # Build the animated scatter plot using a sleek, deep intelligence palette
         fig_demo = px.scatter(
             df_anim, x="x", y="y", animation_frame="Pattern", color="color_val",
-            color_continuous_scale=["#00e5ff", "#9b59ff", "#ff4daa", "#ffd700", "#00ff88", "#00e5ff"]
+            color_continuous_scale=["#0a0a1e", "#110055", "#4400cc", "#9b59ff", "#00e5ff", "#4400cc", "#110055", "#0a0a1e"]
         )
 
-        # Apply dark neon layout and lock axes for smooth morphing transitions
+        # Apply dark neon layout and lock axes for smooth, deliberate morphing transitions
         fig_demo.update_layout(
             paper_bgcolor="#07070f", plot_bgcolor="#07070f",
             showlegend=False, coloraxis_showscale=False,
-            margin=dict(l=0, r=0, t=25, b=0), height=300,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10, 10]), 
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-10, 10]),
+            margin=dict(l=0, r=0, t=25, b=0), height=350,
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-12, 12]), 
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="", range=[-12, 12]),
             updatemenus=[dict(
                 type="buttons", showactive=False,
                 y=-0.05, x=0.5, xanchor="center", yanchor="top",
                 buttons=[dict(
-                    label="▶ Morph 21 Patterns",
+                    label="▶ Initiate Evolution",
                     method="animate",
-                    args=[None, dict(frame=dict(duration=800, redraw=True), fromcurrent=True, transition=dict(duration=800, easing="cubic-in-out"))]
+                    args=[None, dict(
+                        frame=dict(duration=2500, redraw=True), 
+                        fromcurrent=True, 
+                        transition=dict(duration=2500, easing="cubic-in-out")
+                    )]
                 )]
             )]
         )
-        fig_demo.update_traces(marker=dict(size=6, opacity=0.85, line=dict(width=0)))
+        
+        # Micro-markers to support the high density without overlapping into solid blocks
+        fig_demo.update_traces(marker=dict(size=3, opacity=0.75, line=dict(width=0)))
 
-        # Hide the default slider to keep the UI clean
+        # Hide the default slider to keep the UI strictly professional
         if "sliders" in fig_demo.layout:
             fig_demo.layout.sliders[0].visible = False
 

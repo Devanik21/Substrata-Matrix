@@ -334,8 +334,14 @@ def generate_pattern(
     pattern = PATTERN_CATALOG[pattern_id]
     generator = pattern["generator"]
     
-    # Call generator (generates 2D data, no labels)
-    X = generator(n_samples, n_clusters, random_state)
+    # Call generator (some return just X, others return (X, y))
+    raw_output = generator(n_samples, n_clusters, random_state)
+    
+    # Extract X if the generator returned a tuple
+    if isinstance(raw_output, tuple):
+        X = raw_output[0]
+    else:
+        X = raw_output
     
     # Ensure output shape
     X = np.array(X).reshape(-1, 2)

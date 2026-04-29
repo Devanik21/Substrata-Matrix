@@ -755,9 +755,9 @@ if page == "🏠 Home":
                     label="▶ Initiate Evolution",
                     method="animate",
                     args=[None, dict(
-                        frame=dict(duration=2500, redraw=True), 
+                        frame=dict(duration=4500, redraw=True), 
                         fromcurrent=True, 
-                        transition=dict(duration=2500, easing="cubic-in-out")
+                        transition=dict(duration=4500, easing="cubic-in-out")
                     )]
                 )]
             )]

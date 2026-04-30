@@ -168,7 +168,7 @@ def inject_css():
     }
 
     /* ── Hide Streamlit chrome ── */
-    #MainMenu, footer, header { visibility: hidden; }
+
     .stDeployButton { display: none; }
 
     /* ── App container ── */

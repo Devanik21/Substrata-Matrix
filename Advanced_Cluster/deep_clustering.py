@@ -10,10 +10,10 @@ class DeepClusteringNetwork:
     Deep Embedded Clustering (DEC) implementation.
     Jointly learns feature representations and cluster assignments using deep neural networks.
     """
-    def __init__(self, n_clusters, input_dim, encoder_dims=[500, 500, 2000, 10], alpha=1.0):
+    def __init__(self, n_clusters, input_dim, encoder_dims=None, alpha=1.0):
         self.n_clusters = n_clusters
         self.input_dim = input_dim
-        self.encoder_dims = encoder_dims
+        self.encoder_dims = encoder_dims if encoder_dims is not None else [500, 500, 2000, 10]
         self.alpha = alpha
         self.autoencoder, self.encoder = self._build_autoencoder()
         self.cluster_centers_ = None

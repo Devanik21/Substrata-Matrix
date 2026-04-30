@@ -17,10 +17,11 @@ class FederatedKMeans:
         client_datasets: list of ndarrays, each representing data on a remote client.
         """
         # Initialize centroids from the first client's data
-        np.random.seed(42)
-        all_data = np.vstack(client_datasets)
-        initial_indices = np.random.choice(all_data.shape[0], self.n_clusters, replace=False)
-        self.global_centroids = all_data[initial_indices]
+        rng = np.random.default_rng(42)
+        # Initialize centroids from the first client's data to avoid aggregating all raw data
+        first_client_data = client_datasets[0]
+        initial_indices = rng.choice(first_client_data.shape[0], self.n_clusters, replace=False)
+        self.global_centroids = first_client_data[initial_indices]
 
         for iteration in range(self.max_iter):
             client_centroids = []

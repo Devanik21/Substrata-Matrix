@@ -544,7 +544,7 @@ def _dark_plotly(fig, height: int = 500) -> Any:
 
 def _safe_plotly(fig):
     if fig:
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True})
+        st.plotly_chart(fig, width='stretch', config={"displayModeBar": True})
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -679,15 +679,15 @@ if page == "🏠 Home":
         st.markdown("")
         c1, c2, c3 = st.columns(3)
         with c1:
-            if st.button(" Quick Start →", type="primary", use_container_width=True):
+            if st.button(" Quick Start →", type="primary", width='stretch'):
                 st.session_state.page = "📁 Data Ingestion"
                 st.rerun()
         with c2:
-            if st.button("📖 Algorithm Browser", use_container_width=True):
+            if st.button("📖 Algorithm Browser", width='stretch'):
                 st.session_state.page = "🧬 Algorithm Arena"
                 st.rerun()
         with c3:
-            if st.button(" AI Oracle", use_container_width=True):
+            if st.button(" AI Oracle", width='stretch'):
                 st.session_state.page = " AI Oracle"
                 st.rerun()
 
@@ -770,7 +770,7 @@ if page == "🏠 Home":
         if "sliders" in fig_demo.layout:
             fig_demo.layout.sliders[0].visible = False
 
-        st.plotly_chart(fig_demo, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_demo, width='stretch', config={"displayModeBar": False})
 
     _sep()
 
@@ -919,7 +919,7 @@ elif page == "📁 Data Ingestion":
             key="pat_clusters"
         )
     
-    if st.button("🎲 Generate Pattern", use_container_width=True, 
+    if st.button("🎲 Generate Pattern", width='stretch', 
                  type="primary", key="gen_pattern_btn"):
         with st.spinner("🔄 Generating pattern..."):
             try:
@@ -975,7 +975,7 @@ elif page == "📁 Data Ingestion":
                         opacity=0.6
                     )
                 )
-                st.plotly_chart(fig, use_container_width=True, 
+                st.plotly_chart(fig, width='stretch', 
                                config={"displayModeBar": False})
             
             with col_vis2:
@@ -990,10 +990,10 @@ elif page == "📁 Data Ingestion":
                     color="#9b59ff"
                 )
                 st.divider()
-                if st.button("📋 Show Data", use_container_width=True, key="show_synth"):
+                if st.button("📋 Show Data", width='stretch', key="show_synth"):
                     st.dataframe(
                         st.session_state.df_raw.head(10), 
-                        use_container_width=True
+                        width='stretch'
                     )
     
 
@@ -1002,7 +1002,7 @@ elif page == "📁 Data Ingestion":
             df = st.session_state.df_raw
             _subsection("Preview")
             preview_rows = st.slider("Rows to preview", 5, 100, 20)
-            st.dataframe(df.head(preview_rows), use_container_width=True, height=340)
+            st.dataframe(df.head(preview_rows), width='stretch', height=340)
 
             c1,c2,c3,c4,c5 = st.columns(5)
             with c1: _metric_card(f"{len(df):,}", "Rows")
@@ -1012,7 +1012,7 @@ elif page == "📁 Data Ingestion":
             with c5: _metric_card(f"{df.isnull().mean().mean()*100:.1f}%", "Missing %", color="#ff8c00")
 
             st.markdown("")
-            if st.button("🔍 Run Deep Profile", type="primary", use_container_width=True):
+            if st.button("🔍 Run Deep Profile", type="primary", width='stretch'):
                 with st.spinner("Profiling dataset..."):
                     try:
                         profiler = _b("DataProfiler")()
@@ -1040,7 +1040,7 @@ elif page == "📁 Data Ingestion":
         }
 
         sel_ds = st.selectbox("Select dataset", list(datasets.keys()))
-        if st.button("📥 Load Sample Dataset", use_container_width=True):
+        if st.button("📥 Load Sample Dataset", width='stretch'):
             kind, kwargs = datasets[sel_ds]
             try:
                 if kind == "sklearn":
@@ -1086,7 +1086,7 @@ elif page == "📁 Data Ingestion":
                 st.session_state.df_raw = df
                 st.session_state.df_filename = sel_ds
                 _success(f"Loaded **{sel_ds}**: {len(df)} rows × {len(df.columns)} cols")
-                st.dataframe(df.head(10), use_container_width=True)
+                st.dataframe(df.head(10), width='stretch')
             except Exception as e:
                 st.error(f"Failed: {e}")
 
@@ -1118,7 +1118,7 @@ elif page == "📁 Data Ingestion":
                         "Skew": round(cp.skewness,3) if cp.skewness else None,
                         "Outliers%": cp.outlier_pct,
                     })
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, height=380)
+                st.dataframe(pd.DataFrame(rows), width='stretch', height=380)
 
             with col_right:
                 if profile.total_missing > 0:
@@ -1138,7 +1138,7 @@ elif page == "📁 Data Ingestion":
                 _subsection(f"High-Correlation Pairs (top {min(10, len(profile.high_corr_pairs))})")
                 hc_rows = [{"Feature A": a[:25], "Feature B": b[:25], "Pearson |r|": round(r,4)}
                            for a,b,r in profile.high_corr_pairs[:10]]
-                st.dataframe(pd.DataFrame(hc_rows), use_container_width=True)
+                st.dataframe(pd.DataFrame(hc_rows), width='stretch')
 
             _sep()
             _subsection("Feature Distribution Explorer")
@@ -1179,7 +1179,7 @@ elif page == "⚙️ Preprocessing":
             _info("Run **Deep Profile** first for auto-recommendations (Data Ingestion → Deep Profile).")
 
     with col_run:
-        auto_rec = st.button("✨ Auto-Recommend Config", use_container_width=True)
+        auto_rec = st.button("✨ Auto-Recommend Config", width='stretch')
 
     if auto_rec and profile:
         rec_cfg = _b("infer_best_config")(profile)
@@ -1288,9 +1288,9 @@ elif page == "⚙️ Preprocessing":
     _sep()
     c_btn1, c_btn2, _ = st.columns([1, 1, 2])
     with c_btn1:
-        run_preproc = st.button("⚙️ Run Preprocessing Pipeline", type="primary", use_container_width=True)
+        run_preproc = st.button("⚙️ Run Preprocessing Pipeline", type="primary", width='stretch')
     with c_btn2:
-        reset_preproc = st.button("🔄 Reset", use_container_width=True)
+        reset_preproc = st.button("🔄 Reset", width='stretch')
 
     if reset_preproc:
         st.session_state.preproc_result = None
@@ -1364,7 +1364,7 @@ elif page == "⚙️ Preprocessing":
         _subsection("Processed Feature Statistics")
         df_proc = result.X_processed
         stats = df_proc.describe().T.round(4)
-        st.dataframe(stats, use_container_width=True, height=280)
+        st.dataframe(stats, width='stretch', height=280)
 
         if result.outlier_mask is not None and result.outlier_mask.any():
             _subsection("Outlier Scatter Preview")
@@ -1462,7 +1462,7 @@ elif page == "🧬 Algorithm Arena":
         }
         for (pname, pids), col in zip(presets.items(), preset_cols):
             with col:
-                if st.button(pname, use_container_width=True):
+                if st.button(pname, width='stretch'):
                     valid = [aid for aid in pids if aid in registry.ids()]
                     st.session_state.selected_algorithms = valid
                     _success(f"Selected {len(valid)} algorithms")
@@ -1514,7 +1514,7 @@ elif page == "🧬 Algorithm Arena":
                                    font=dict(color="#e0e0f0"), height=300,
                                    showlegend=False, coloraxis_showscale=False,
                                    margin=dict(l=0,r=0,t=10,b=0))
-            st.plotly_chart(fig_fam, use_container_width=True, config={"displayModeBar":False})
+            st.plotly_chart(fig_fam, width='stretch', config={"displayModeBar":False})
 
     # ── Inspector ─────────────────────────────────────────────────
     with tab_detail:
@@ -1552,7 +1552,7 @@ elif page == "🧬 Algorithm Arena":
                              if hp.min_val is not None else "—",
                              "Description": hp.description}
                             for hp in spec.hyper_params]
-                st.dataframe(pd.DataFrame(hp_rows), use_container_width=True)
+                st.dataframe(pd.DataFrame(hp_rows), width='stretch')
 
             _tag_cls_map = {
                 "fast":"fast","scalable":"scale","no_k_needed":"nok",
@@ -1606,9 +1606,9 @@ elif page == "⚡ Execution Engine":
     _sep()
     col_run, col_eval, _ = st.columns([1,1,2])
     with col_run:
-        do_run = st.button(" Launch Clustering", type="primary", use_container_width=True)
+        do_run = st.button(" Launch Clustering", type="primary", width='stretch')
     with col_eval:
-        do_eval_only = st.button("📊 Re-Evaluate (existing results)", use_container_width=True)
+        do_eval_only = st.button("📊 Re-Evaluate (existing results)", width='stretch')
 
     if do_run:
         with st.spinner(""):
@@ -1697,7 +1697,7 @@ elif page == "⚡ Execution Engine":
                 "Error": (cr.error_message or "")[:60],
             })
         status_df = pd.DataFrame(status_rows)
-        st.dataframe(status_df, use_container_width=True, height=380)
+        st.dataframe(status_df, width='stretch', height=380)
 
         if st.session_state.run_log:
             with st.expander("📋 Run Log"):
@@ -1753,7 +1753,7 @@ elif page == "📊 Results Dashboard":
         if not df_results.empty:
             st.dataframe(df_results.style.background_gradient(
                 subset=["Score"] if "Score" in df_results.columns else None,
-                cmap="Blues"), use_container_width=True, height=420)
+                cmap="Blues"), width='stretch', height=420)
 
         col_dl1, _ = st.columns([1,4])
         with col_dl1:
@@ -1822,7 +1822,7 @@ elif page == "📊 Results Dashboard":
                             "Grade": mv.grade,
                         })
                 if m_rows:
-                    st.dataframe(pd.DataFrame(m_rows), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(m_rows), width='stretch', hide_index=True)
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -1991,7 +1991,7 @@ elif page == "🧪 Stability Lab":
     with tab_run:
         col_btn, _ = st.columns([1,3])
         with col_btn:
-            run_stab = st.button("🧪 Run Stability Analysis", type="primary", use_container_width=True)
+            run_stab = st.button("🧪 Run Stability Analysis", type="primary", width='stretch')
 
         if run_stab:
             if not sel_test_algos:
@@ -2084,12 +2084,12 @@ elif page == "🧪 Stability Lab":
                     for k,v in rpt.ari_by_type.items()
                 ])
                 if not type_df.empty:
-                    st.dataframe(type_df, use_container_width=True)
+                    st.dataframe(type_df, width='stretch')
 
     with tab_ari_matrix:
         col_btn2, _ = st.columns([1,3])
         with col_btn2:
-            build_matrix = st.button("🔲 Build ARI Agreement Matrix", use_container_width=True)
+            build_matrix = st.button("🔲 Build ARI Agreement Matrix", width='stretch')
 
         if build_matrix:
             with st.spinner("Computing pairwise ARI matrix..."):
@@ -2118,7 +2118,7 @@ elif page == "🧪 Stability Lab":
         noise_levels_inp = st.text_input("Noise levels", "0.0,0.02,0.05,0.1,0.15,0.2,0.3")
         col_noise_btn, _ = st.columns([1,3])
         with col_noise_btn:
-            run_noise = st.button("📉 Profile Noise Response", use_container_width=True)
+            run_noise = st.button("📉 Profile Noise Response", width='stretch')
 
         if run_noise and noise_sel_algos:
             from stability import NoiseResponseProfiler
@@ -2186,9 +2186,9 @@ elif page == "🤝 Consensus Forge":
     with tab_run:
         col_btn1, col_btn2, _ = st.columns([1,1,2])
         with col_btn1:
-            run_single = st.button("🤝 Build Consensus (selected method)", type="primary", use_container_width=True)
+            run_single = st.button("🤝 Build Consensus (selected method)", type="primary", width='stretch')
         with col_btn2:
-            run_all_methods = st.button("⚡ Run All 8 Methods", use_container_width=True)
+            run_all_methods = st.button("⚡ Run All 8 Methods", width='stretch')
 
         if run_single or run_all_methods:
             with st.spinner("Building consensus..."):
@@ -2332,7 +2332,7 @@ elif page == " AI Oracle":
             _info("Load data and run clustering to generate AI insights.")
         else:
             sel_topic = st.selectbox("Generate insight for:", insight_topics)
-            if st.button("✨ Generate AI Insight", type="primary", use_container_width=True):
+            if st.button("✨ Generate AI Insight", type="primary", width='stretch'):
                 context = ""
                 prompt  = ""
 
@@ -2414,7 +2414,7 @@ elif page == " AI Oracle":
         build_ctx = st.checkbox("Include current session context", True)
         col_send, _ = st.columns([1,3])
         with col_send:
-            send_q = st.button("📨 Send", type="primary", use_container_width=True)
+            send_q = st.button("📨 Send", type="primary", width='stretch')
 
         if send_q and user_q.strip():
             ctx = ""
@@ -2456,7 +2456,7 @@ elif page == " AI Oracle":
             rec_interpretable = st.checkbox("Prioritise interpretability", True)
             rec_speed = st.select_slider("Speed priority", ["Accuracy","Balanced","Speed"], "Balanced")
 
-        if st.button("🎯 Get AI Recommendations", type="primary", use_container_width=True):
+        if st.button("🎯 Get AI Recommendations", type="primary", width='stretch'):
             prompt = (
                 f"Recommend the best clustering algorithms for this scenario:\n"
                 f"- Dataset: {rec_n_samples:,} rows, {rec_n_features} features\n"
@@ -2490,7 +2490,7 @@ elif page == " AI Oracle":
         if sel_explain == "Custom question (type below)":
             custom_q = st.text_input("Enter your question")
 
-        if st.button("📐 Deep Explain", type="primary", use_container_width=True):
+        if st.button("📐 Deep Explain", type="primary", width='stretch'):
             q = custom_q if custom_q else sel_explain
             prompt = (f"Give a deep, rigorous explanation of: '{q}'. "
                        f"Include mathematical intuition where appropriate, "
@@ -2532,7 +2532,7 @@ elif page == "🛠️ Advanced Tools":
                 k_min = st.number_input("k min", 2, 20, 2)
                 k_max = st.number_input("k max", 3, 50, 15)
 
-            if st.button("📈 Run k-Sweep", type="primary", use_container_width=True):
+            if st.button("📈 Run k-Sweep", type="primary", width='stretch'):
                 with st.spinner(f"Running k-sweep for {sweep_alg}..."):
                     try:
                         from evaluation import KSweepAnalyser
@@ -2573,7 +2573,7 @@ elif page == "🛠️ Advanced Tools":
                         paper_bgcolor="#07070f", plot_bgcolor="#0d0d1e",
                         font=dict(color="#e0e0f0"), height=350,
                         margin=dict(l=40,r=40,t=50,b=40))
-                    st.plotly_chart(fig_multi_k, use_container_width=True)
+                    st.plotly_chart(fig_multi_k, width='stretch')
 
     # ── k-Estimator ───────────────────────────────────────────────
     with tab_kest:
@@ -2585,7 +2585,7 @@ elif page == "🛠️ Advanced Tools":
             coassoc = st.session_state.consensus_result.coassoc_matrix
             k_min_e = st.number_input("k min", 2, 10, 2, key="ke_min")
             k_max_e = st.number_input("k max", 3, 30, 12, key="ke_max")
-            if st.button("🎯 Estimate Optimal k", type="primary", use_container_width=True):
+            if st.button("🎯 Estimate Optimal k", type="primary", width='stretch'):
                 from consensus import ConsensusKEstimator
                 est = ConsensusKEstimator()
                 result = est.estimate(coassoc, k_range=range(k_min_e, k_max_e+1))
@@ -2660,7 +2660,7 @@ elif page == "🛠️ Advanced Tools":
                 st.download_button("💾 CSV",
                                     df_exp.to_csv(index=False).encode(),
                                     "clusterx_rankings.csv", "text/csv",
-                                    use_container_width=True)
+                                    width='stretch')
 
                 st.markdown("**🏷️ All Labels (wide)**")
                 lbl_dict = {}
@@ -2672,7 +2672,7 @@ elif page == "🛠️ Advanced Tools":
                     st.download_button("💾 CSV",
                                         lbl_df.to_csv(index=False).encode(),
                                         "all_labels.csv", "text/csv",
-                                        use_container_width=True)
+                                        width='stretch')
 
             with c2:
                 st.markdown("**🤝 Consensus Labels**")
@@ -2682,14 +2682,14 @@ elif page == "🛠️ Advanced Tools":
                     st.download_button("💾 CSV",
                                         cdf.to_csv(index=False).encode(),
                                         "consensus_labels.csv", "text/csv",
-                                        use_container_width=True)
+                                        width='stretch')
 
                 st.markdown("**📐 Full Metrics JSON**")
                 metrics_export = [r.to_dict() for r in eval_r]
                 st.download_button("💾 JSON",
                                     json.dumps(metrics_export, indent=2).encode(),
                                     "metrics.json", "application/json",
-                                    use_container_width=True)
+                                    width='stretch')
 
             with c3:
                 st.markdown("**🧪 Stability Reports JSON**")
@@ -2700,14 +2700,14 @@ elif page == "🛠️ Advanced Tools":
                     st.download_button("💾 JSON",
                                         json.dumps(stab_export, indent=2).encode(),
                                         "stability.json", "application/json",
-                                        use_container_width=True)
+                                        width='stretch')
 
                 st.markdown("**🔲 ARI Matrix**")
                 if st.session_state.ari_matrix is not None:
                     st.download_button("💾 CSV",
                                         st.session_state.ari_matrix.to_csv().encode(),
                                         "ari_matrix.csv", "text/csv",
-                                        use_container_width=True)
+                                        width='stretch')
 
             _sep()
             _subsection("📦 Processed Feature Matrix")
@@ -2719,7 +2719,7 @@ elif page == "🛠️ Advanced Tools":
                 st.download_button("💾 Download Processed Data (CSV)",
                                     X_df.to_csv(index=False).encode(),
                                     "processed_features.csv", "text/csv",
-                                    use_container_width=True)
+                                    width='stretch')
 
     # ── Diagnostics ───────────────────────────────────────────────
     with tab_diagnostics:
@@ -2741,7 +2741,7 @@ elif page == "🛠️ Advanced Tools":
                     {"Module": "consensus", "Status": "✅ OK"},
                     {"Module": "visualization", "Status": "✅ OK"},
                 ]
-                st.dataframe(pd.DataFrame(diag_rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(diag_rows), width='stretch', hide_index=True)
             else:
                 _warn("Backend load failed.")
                 st.code(B.get("tb",""), language="python")
@@ -2758,7 +2758,7 @@ elif page == "🛠️ Advanced Tools":
                 {"Key": "Consensus built", "Value": "Yes" if st.session_state.consensus_result else "No"},
                 {"Key": "AI queries", "Value": str(len(st.session_state.gemini_history))},
             ]
-            st.dataframe(pd.DataFrame(state_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(state_rows), width='stretch', hide_index=True)
 
         _sep()
         _subsection("Optional Dependencies")
@@ -2775,7 +2775,7 @@ elif page == "🛠️ Advanced Tools":
                 dep_rows.append({"Package": pkg, "Purpose": purpose, "Status": "✅ Available"})
             except ImportError:
                 dep_rows.append({"Package": pkg, "Purpose": purpose, "Status": "⚠️ Not installed"})
-        st.dataframe(pd.DataFrame(dep_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(dep_rows), width='stretch', hide_index=True)
 
         _sep()
         if st.button("🗑️ Reset Full Session", use_container_width=False):
@@ -2828,7 +2828,7 @@ def _render_clusterability_panel():
         st.markdown("#### 🔬 Hopkins Statistic")
         st.caption("Measures spatial randomness. H > 0.6 → data is clusterable.")
         n_hop = st.slider("Sample size for Hopkins", 50, 300, 150, key="hop_n")
-        if st.button("▶ Compute Hopkins", use_container_width=True, key="run_hop"):
+        if st.button("▶ Compute Hopkins", width='stretch', key="run_hop"):
             with st.spinner("Computing Hopkins statistic..."):
                 try:
                     from evaluation import HopkinsStatistic
@@ -2842,7 +2842,7 @@ def _render_clusterability_panel():
             H   = res.get("hopkins")
             if H is not None and vis_engine and hasattr(vis_engine, "clusterability_gauge"):
                 fig_gauge = vis_engine.clusterability_gauge(H, res.get("interpretation",""))
-                st.plotly_chart(fig_gauge, use_container_width=True,
+                st.plotly_chart(fig_gauge, width='stretch',
                                 config={"displayModeBar": False})
             st.markdown(f"""
             <div class="{'success-panel' if res.get('is_clusterable') else 'warn-panel'}">
@@ -2860,7 +2860,7 @@ def _render_clusterability_panel():
         with col_g2: k_max_gap = st.number_input("k max", 2, 20, 10, key="gap_kmax")
         with col_g3: n_refs    = st.number_input("Refs", 3, 20, 8, key="gap_refs")
 
-        if st.button("▶ Compute Gap Stat", use_container_width=True, key="run_gap"):
+        if st.button("▶ Compute Gap Stat", width='stretch', key="run_gap"):
             with st.spinner("Running Gap Statistic (this may take 30–60s)..."):
                 try:
                     from evaluation import run_gap_statistic
@@ -2875,7 +2875,7 @@ def _render_clusterability_panel():
         if "_gap_result" in st.session_state and vis_engine:
             if hasattr(vis_engine, "gap_statistic_plot"):
                 fig_gap = vis_engine.gap_statistic_plot(st.session_state["_gap_result"])
-                st.plotly_chart(fig_gap, use_container_width=True,
+                st.plotly_chart(fig_gap, width='stretch',
                                 config={"displayModeBar": True})
 
     _sep()
@@ -2894,7 +2894,7 @@ def _render_clusterability_panel():
             format_func=lambda x: next((er.algorithm_name for er in eval_results if er.algorithm_id==x), x),
             key="dbcv_alg",
         )
-        if st.button("▶ Compute DBCV", use_container_width=True, key="run_dbcv"):
+        if st.button("▶ Compute DBCV", width='stretch', key="run_dbcv"):
             with st.spinner("Computing DBCV..."):
                 try:
                     from evaluation import compute_dbcv
@@ -2918,7 +2918,7 @@ def _render_clusterability_panel():
                         {"Cluster": f"C{k}", "DBCV": v}
                         for k, v in dbcv_res["per_cluster"].items()
                     ])
-                    st.dataframe(pc_df, use_container_width=True, hide_index=True)
+                    st.dataframe(pc_df, width='stretch', hide_index=True)
             else:
                 _warn(f"DBCV error: {dbcv_res.get('error','unknown')}")
 
@@ -2941,7 +2941,7 @@ def _render_clusterability_panel():
         )
         conf_method = st.selectbox("Embedding", _b("available_embedding_methods")(), key="conf_method")
 
-        if st.button("▶ Compute Confidence Map", use_container_width=True, key="run_conf"):
+        if st.button("▶ Compute Confidence Map", width='stretch', key="run_conf"):
             with st.spinner("Scoring point confidence..."):
                 try:
                     from stability import ClusterConfidenceScorer
@@ -3003,7 +3003,7 @@ def _render_density_network_panel():
     with col_a:
         _subsection("Density Contour Overlay")
         dc_method = st.selectbox("Embedding", _b("available_embedding_methods")(), key="dc_method")
-        if st.button("▶ Draw Density Contour", use_container_width=True, key="run_dc"):
+        if st.button("▶ Draw Density Contour", width='stretch', key="run_dc"):
             with st.spinner("Computing KDE contours..."):
                 if hasattr(vis_engine, "density_contour"):
                     fig_dc = vis_engine.density_contour(X, labels, method=dc_method,
@@ -3014,7 +3014,7 @@ def _render_density_network_panel():
 
     with col_b:
         _subsection("Cluster Network Graph")
-        if st.button("▶ Build Network", use_container_width=True, key="run_net"):
+        if st.button("▶ Build Network", width='stretch', key="run_net"):
             with st.spinner("Building cluster network..."):
                 if hasattr(vis_engine, "cluster_network"):
                     fig_net = vis_engine.cluster_network(X, labels, algorithm_name=sel_alg)
@@ -3024,7 +3024,7 @@ def _render_density_network_panel():
 
     _sep()
     _subsection("Cluster Separability Matrix")
-    if st.button("▶ Compute Separability Matrix", use_container_width=True, key="run_sep"):
+    if st.button("▶ Compute Separability Matrix", width='stretch', key="run_sep"):
         with st.spinner("Computing Mahalanobis separability..."):
             try:
                 from evaluation import ClusterSeparabilityMatrix
@@ -3142,7 +3142,7 @@ def _render_smart_detection_panel():
     _section("🧠 Smart Data Detection")
     _info("Automatic detection of data quality issues, special column types, and preprocessing recommendations.")
 
-    if st.button("🔍 Run Smart Detection", use_container_width=True, key="smart_det"):
+    if st.button("🔍 Run Smart Detection", width='stretch', key="smart_det"):
         with st.spinner("Analysing data characteristics..."):
             try:
                 from preprocessing import SmartDataTypeDetector
@@ -3170,7 +3170,7 @@ def _render_smart_detection_panel():
             flag_df = pd.DataFrame(
                 list(det["flag_summary"].items()), columns=["Flag","Count"]
             ).sort_values("Count", ascending=False)
-            st.dataframe(flag_df, use_container_width=True, hide_index=True)
+            st.dataframe(flag_df, width='stretch', hide_index=True)
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -3198,7 +3198,7 @@ def _render_dim_reduc_benchmark():
     n_comp = st.slider("Target components", 2, min(20, X.shape[1]-1), 5)
     max_s  = st.slider("Max sample size", 500, 10000, 3000)
 
-    if st.button("📐 Run Benchmark", type="primary", use_container_width=True, key="dr_bench"):
+    if st.button("📐 Run Benchmark", type="primary", width='stretch', key="dr_bench"):
         with st.spinner("Benchmarking embeddings..."):
             try:
                 from preprocessing import DimReducBenchmarker
@@ -3218,7 +3218,7 @@ def _render_dim_reduc_benchmark():
             "Runtime(s)": r.get("runtime_seconds"),
             "Status": r.get("status",""),
         } for r in dr])
-        st.dataframe(bench_df, use_container_width=True, hide_index=True)
+        st.dataframe(bench_df, width='stretch', hide_index=True)
 
         if len(dr) > 0:
             best_m = max(dr, key=lambda r: r.get("trustworthiness") or 0)
@@ -3246,7 +3246,7 @@ def _render_dim_reduc_benchmark():
                     title="Embedding Trustworthiness Comparison",
                     showlegend=False,
                 )
-                st.plotly_chart(fig_bench, use_container_width=True)
+                st.plotly_chart(fig_bench, width='stretch')
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -3267,28 +3267,28 @@ def _render_leaderboard_panel():
 
     col_save, col_clear, _ = st.columns([1,1,3])
     with col_save:
-        if _has_results() and st.button("💾 Save Current Run", use_container_width=True):
+        if _has_results() and st.button("💾 Save Current Run", width='stretch'):
             ds_name = st.session_state.df_filename or f"dataset_{len(lb._history)}"
             X = st.session_state.X_processed
             lb.record(ds_name, st.session_state.eval_results, X.shape[0], X.shape[1])
             _success(f"Saved {len(st.session_state.eval_results)} results for '{ds_name}'")
     with col_clear:
-        if st.button("🗑️ Clear", use_container_width=True):
+        if st.button("🗑️ Clear", width='stretch'):
             lb.clear(); st.rerun()
 
     if lb._history:
         top_df = lb.top_algorithms(top_n=15)
         if not top_df.empty:
             _subsection("Top Algorithms (Mean Composite Score)")
-            st.dataframe(top_df, use_container_width=True, hide_index=True)
+            st.dataframe(top_df, width='stretch', hide_index=True)
 
         win_df = lb.win_rates()
         if not win_df.empty:
             _subsection("Win Rates (% of datasets where ranked #1)")
-            st.dataframe(win_df, use_container_width=True, hide_index=True)
+            st.dataframe(win_df, width='stretch', hide_index=True)
 
         _subsection("Full History")
-        st.dataframe(lb.to_dataframe(), use_container_width=True, height=350)
+        st.dataframe(lb.to_dataframe(), width='stretch', height=350)
         st.download_button("💾 Export Leaderboard CSV",
                             lb.to_dataframe().to_csv(index=False).encode(),
                             "leaderboard.csv", "text/csv")
@@ -3318,7 +3318,7 @@ def _render_whitening_panel():
     eps = st.number_input("Epsilon (regularisation)", value=1e-5,
                            format="%.1e", min_value=1e-8, max_value=0.1)
 
-    if st.button("⬜ Apply Whitening", type="primary", use_container_width=True):
+    if st.button("⬜ Apply Whitening", type="primary", width='stretch'):
         with st.spinner("Whitening data..."):
             try:
                 from preprocessing import WhiteningTransform
@@ -3358,7 +3358,7 @@ def _render_deduplication_panel():
     _info("Remove algorithms that produced identical partitions — "
           "reduces evaluation noise and speeds up stability analysis.")
 
-    if st.button("🔍 Find Duplicates", use_container_width=True):
+    if st.button("🔍 Find Duplicates", width='stretch'):
         with st.spinner("Fingerprinting all results..."):
             from clustering_runner import ResultFingerprinter
             fp = ResultFingerprinter()
@@ -3380,7 +3380,7 @@ def _render_deduplication_panel():
                 {"Duplicate Algorithm": k, "Same As": v}
                 for k, v in dup_map.items()
             ])
-            st.dataframe(dup_df, use_container_width=True, hide_index=True)
+            st.dataframe(dup_df, width='stretch', hide_index=True)
             _info("These algorithms found identical partitions. "
                   "Consider running only one representative per group in future.")
 
@@ -3407,7 +3407,7 @@ def _render_complexity_panel():
                             key="cplx_alg")
     n_clusters = st.slider("k for test", 2, 20, st.session_state.n_clusters, key="cplx_k")
 
-    if st.button("⏱️ Estimate Complexity", type="primary", use_container_width=True):
+    if st.button("⏱️ Estimate Complexity", type="primary", width='stretch'):
         with st.spinner("Running complexity estimation (takes ~30s)..."):
             try:
                 from clustering_runner import ComplexityEstimator
@@ -3447,7 +3447,7 @@ def _render_complexity_panel():
                 font=dict(color=_b("Theme").TEXT_PRIMARY), height=340,
                 xaxis_title="Sample size (n)", yaxis_title="Runtime (s)",
                 title=f"Complexity Fit: {registry.get(alg_sel).name}")
-            st.plotly_chart(fig_cplx, use_container_width=True)
+            st.plotly_chart(fig_cplx, width='stretch')
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -3471,7 +3471,7 @@ def _render_multi_resolution_panel():
     k_vals_str = st.text_input("k values to test", "2,3,4,5,6,7,8,10,12")
     top_n_algos = st.slider("Use top N algorithms for ensemble", 3, 20, 10)
 
-    if st.button("🔬 Run Multi-Resolution", type="primary", use_container_width=True):
+    if st.button("🔬 Run Multi-Resolution", type="primary", width='stretch'):
         with st.spinner("Running multi-resolution consensus..."):
             try:
                 from consensus import MultiResolutionConsensus, CoAssociationMatrixBuilder
@@ -3517,7 +3517,7 @@ def _render_multi_resolution_panel():
                 font=dict(color=_b("Theme").TEXT_PRIMARY), height=380,
                 xaxis_title="k", yaxis_title="Consensus Silhouette",
                 title="Multi-Resolution Consensus Quality")
-            st.plotly_chart(fig_mrc, use_container_width=True)
+            st.plotly_chart(fig_mrc, width='stretch')
 
         if mrc.get("labels") is not None and vis_engine:
             _subsection("Best-k Consensus Projection")
@@ -3556,7 +3556,7 @@ def _render_cluster_profiles_panel():
         _warn("No valid labels for selected algorithm.")
         return
 
-    if st.button("🔬 Generate Cluster Profiles", use_container_width=True):
+    if st.button("🔬 Generate Cluster Profiles", width='stretch'):
         with st.spinner("Profiling clusters..."):
             try:
                 from consensus import ConsensusClusterProfiler
@@ -3583,11 +3583,11 @@ def _render_cluster_profiles_panel():
                 _subsection("Feature Signature (most distinctive features)")
                 sig_df = pd.DataFrame(prof["feature_signature"])
                 if not sig_df.empty:
-                    st.dataframe(sig_df, use_container_width=True, hide_index=True)
+                    st.dataframe(sig_df, width='stretch', hide_index=True)
 
         # AI cluster naming
         _sep()
-        if st.button(" AI: Name All Clusters", use_container_width=True):
+        if st.button(" AI: Name All Clusters", width='stretch'):
             context = "\n".join([
                 f"Cluster {cid}: size={p['size']}, "
                 f"top features: {[s['feature'] + '(' + s['direction'] + ')' for s in p['feature_signature'][:3]]}"
@@ -3698,7 +3698,7 @@ def _render_execution_timeline():
         barmode="stack",
         yaxis=dict(autorange="reversed"),
     )
-    st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar":False})
+    st.plotly_chart(fig_tl, width='stretch', config={"displayModeBar":False})
 
 
 if page == "⚡ Execution Engine" and st.session_state.batch_result:

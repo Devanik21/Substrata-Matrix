@@ -325,7 +325,7 @@ PATTERN_CATALOG: Dict[str, dict] = {
 
     # ── BLOB-BASED ────────────────────────────────────────────────
     "blobs_isotropic": {
-        "name": "📍 Isotropic Blobs",
+        "name": " Isotropic Blobs",
         "desc": "Equal-sized Gaussian clusters",
         "generator": lambda n, k, rs: make_blobs(
             n_samples=n, centers=k, random_state=rs, cluster_std=0.55
@@ -333,13 +333,13 @@ PATTERN_CATALOG: Dict[str, dict] = {
         "best_for": "K-means, GMM",
     },
     "blobs_anisotropic": {
-        "name": "🔀 Anisotropic Blobs",
+        "name": "Anisotropic Blobs",
         "desc": "Elongated Gaussian clusters via shear transform",
         "generator": lambda n, k, rs: _raw_aniso_blobs(n, k, rs),
         "best_for": "Spectral, DBSCAN",
     },
     "blobs_varied_sizes": {
-        "name": "📊 Varied-Size Blobs",
+        "name": "Varied-Size Blobs",
         "desc": "Different Gaussian variances per cluster",
         "generator": lambda n, k, rs: make_blobs(
             n_samples=n, centers=k, random_state=rs,
@@ -358,7 +358,7 @@ PATTERN_CATALOG: Dict[str, dict] = {
         "best_for": "Spectral, Agglomerative",
     },
     "circles": {
-        "name": "⭕ Concentric Circles",
+        "name": " Concentric Circles",
         "desc": "Two nested circles",
         "generator": lambda n, k, rs: make_circles(
             n_samples=n, noise=0.04, factor=0.45, random_state=rs
@@ -366,13 +366,13 @@ PATTERN_CATALOG: Dict[str, dict] = {
         "best_for": "Spectral, DBSCAN",
     },
     "swiss_roll": {
-        "name": "🌀 Swiss Roll",
+        "name": " Swiss Roll",
         "desc": "2D projection of 3D roll manifold",
         "generator": lambda n, k, rs: _raw_swiss_roll_2d(n, rs),
         "best_for": "DBSCAN, Manifold",
     },
     "s_curve": {
-        "name": "〰️ S-Curve",
+        "name": " S-Curve",
         "desc": "Elongated S-shaped manifold",
         "generator": lambda n, k, rs: _raw_s_curve_2d(n, rs),
         "best_for": "DBSCAN, t-SNE",
@@ -380,13 +380,13 @@ PATTERN_CATALOG: Dict[str, dict] = {
 
     # ── NOISE + CLUSTERS ─────────────────────────────────────────
     "blobs_with_noise": {
-        "name": "🔊 Noisy Blobs",
+        "name": "Noisy Blobs",
         "desc": "Tight blobs surrounded by outliers",
         "generator": lambda n, k, rs: _raw_noisy_blobs(n, k, rs),
         "best_for": "DBSCAN, LOF",
     },
     "tight_with_outliers": {
-        "name": "🎯 Tight + Outliers",
+        "name": " Tight + Outliers",
         "desc": "Compact clusters with scattered noise",
         "generator": lambda n, k, rs: _raw_outlier_blobs(n, k, rs, 0.10),
         "best_for": "Isolation Forest, DBSCAN",
@@ -394,7 +394,7 @@ PATTERN_CATALOG: Dict[str, dict] = {
 
     # ── HIERARCHICAL ─────────────────────────────────────────────
     "nested_circles": {
-        "name": "🎪 Nested Rings",
+        "name": " Nested Rings",
         "desc": "Multiple concentric circles",
         "generator": lambda n, k, rs: _raw_nested_circles(n, k, rs),
         "best_for": "Agglomerative, Spectral",
@@ -414,7 +414,7 @@ PATTERN_CATALOG: Dict[str, dict] = {
         "best_for": "DBSCAN, OPTICS",
     },
     "elongated_clusters": {
-        "name": "📏 Elongated Clusters",
+        "name": "Elongated Clusters",
         "desc": "Long thin cluster shapes",
         "generator": lambda n, k, rs: _raw_elongated_blobs(n, k, rs),
         "best_for": "Spectral, DBSCAN",
@@ -422,13 +422,13 @@ PATTERN_CATALOG: Dict[str, dict] = {
 
     # ── OVERLAPPING ──────────────────────────────────────────────
     "heavily_overlapped": {
-        "name": "🔗 Heavily Overlapped",
+        "name": " Heavily Overlapped",
         "desc": "Blurred cluster boundaries",
         "generator": lambda n, k, rs: _raw_overlapped_blobs(n, k, rs, 0.70),
         "best_for": "GMM, Agglomerative",
     },
     "slightly_overlapped": {
-        "name": "↔️ Slightly Overlapped",
+        "name": "Slightly Overlapped",
         "desc": "Some boundary overlap, mostly separable",
         "generator": lambda n, k, rs: _raw_overlapped_blobs(n, k, rs, 0.28),
         "best_for": "K-means, Spectral",
@@ -436,31 +436,31 @@ PATTERN_CATALOG: Dict[str, dict] = {
 
     # ── SPECIAL ───────────────────────────────────────────────────
     "halfmoons_rotated": {
-        "name": "🌗 Rotated Half-Moons",
+        "name": " Rotated Half-Moons",
         "desc": "Two tilted crescent shapes",
         "generator": lambda n, k, rs: _raw_rotated_moons(n, rs),
         "best_for": "Spectral, Agglomerative",
     },
     "donuts": {
-        "name": "🍩 Donut Clusters",
+        "name": "Donut Clusters",
         "desc": "Ring-shaped clusters tiled across canvas",
         "generator": lambda n, k, rs: _raw_donut_clusters(n, k, rs),
         "best_for": "DBSCAN, Spectral",
     },
     "blob_in_circle": {
-        "name": "🎯 Blob in Circle",
+        "name": "Blob in Circle",
         "desc": "Central blob surrounded by ring",
         "generator": lambda n, k, rs: _raw_blob_in_circle(n, rs),
         "best_for": "DBSCAN, Spectral",
     },
     "stripes": {
-        "name": "📊 Stripe Pattern",
+        "name": "Stripe Pattern",
         "desc": "Parallel linear cluster bands",
         "generator": lambda n, k, rs: _raw_stripe_pattern(n, k, rs),
         "best_for": "Spectral, OPTICS",
     },
     "random_uniform": {
-        "name": "🎲 Uniform Random",
+        "name": "Uniform Random",
         "desc": "No structure (baseline / robustness test)",
         "generator": lambda n, k, rs: np.random.RandomState(rs).uniform(
             -8, 8, (n, 2)
@@ -470,19 +470,19 @@ PATTERN_CATALOG: Dict[str, dict] = {
 
     # ── BONUS PATTERNS ────────────────────────────────────────────
     "galaxy_spiral": {
-        "name": "🌌 Galaxy Spiral",
+        "name": "Galaxy Spiral",
         "desc": "Logarithmic spiral arms — perfect with radial colour",
         "generator": lambda n, k, rs: _raw_galaxy_spiral(n, k, rs),
         "best_for": "Spectral, DBSCAN",
     },
     "checkerboard": {
-        "name": "♟️ Checkerboard",
+        "name": "Checkerboard",
         "desc": "Grid of blobs in alternating positions",
         "generator": lambda n, k, rs: _raw_checkerboard(n, k, rs),
         "best_for": "Spectral, K-means",
     },
     "figure_eight": {
-        "name": "∞ Figure Eight",
+        "name": "Figure Eight",
         "desc": "Two overlapping loops",
         "generator": lambda n, k, rs: _raw_figure_eight(n, rs),
         "best_for": "Spectral, DBSCAN",
@@ -494,7 +494,7 @@ PATTERN_CATALOG: Dict[str, dict] = {
         "best_for": "Spectral, Agglomerative",
     },
     "crescents": {
-        "name": "🌛 Crescent Array",
+        "name": " Crescent Array",
         "desc": "Multiple crescent moons tiled across the canvas",
         "generator": lambda n, k, rs: _raw_crescents(n, k, rs),
         "best_for": "Spectral, DBSCAN",

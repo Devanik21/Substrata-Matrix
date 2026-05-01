@@ -900,7 +900,7 @@ elif page == "📁 Data Ingestion":
         # Show pattern details
         if pattern_id:
             pattern_info = _b("get_pattern_info")(pattern_id)
-            st.caption(f"✨ {pattern_info['description']}")
+            st.caption(f"✨ {pattern_info.get('desc', 'No description available')}")
             st.caption(f"🎯 Best for: {pattern_info['best_for']}")
     
     with col_pat2:

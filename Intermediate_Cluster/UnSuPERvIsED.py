@@ -2796,7 +2796,7 @@ st.markdown("""
         UnSuPERvIsED · ClusterX Universal Clustering Intelligence Lab
     </div>
     <div style="font-size:.72rem; color:#333355; margin-top:.5rem; letter-spacing:.06em;">
-        Built with ❤️ by ClusterX Intelligence Lab · Powered by Anthropic Claude &amp; Google Gemini
+        Built with 🎨 by DevaNik · Powered by  Gemini
     </div>
 </div>""", unsafe_allow_html=True)
 
